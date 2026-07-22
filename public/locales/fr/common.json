@@ -1,0 +1,59 @@
+{
+  "reportIncidence": "Signaler un incident",
+  "fillSurvey": "Remplir le formulaire",
+  "nearYou": "Près de vous",
+  "sortLatest": "Récent",
+  "sortOldest": "Ancien",
+  "sortNearest": "Plus proche",
+  "loadingMap": "Chargement de la carte...",
+  "survey": {
+    "reportIncident": "Signaler un incident",
+    "submitReport": "Soumettre le rapport",
+    "tapToPin": "Faites glisser la carte pour positionner l'épingle à l'endroit concerné",
+    "pinSetAt": "Épingle placée à",
+    "describeHint": "Décrivez brièvement ce qui s'est passé",
+    "descriptionPlaceholder": "Ex: Le bâtiment s'est effondré après le tremblement de terre vers 6h...",
+    "pleaseSpecify": "Veuillez préciser",
+    "camera": "Caméra",
+    "gallery": "Galerie",
+    "optional": "facultatif",
+    "photoOfDamage": "Photo de l'infrastructure endommagée",
+    "q1": { "title": "Q1. Infrastructure touchée", "subtitle": "Sélectionnez tout ce qui s'applique" },
+    "q2": { "title": "Q2. Nom(s) de l'infrastructure", "subtitle": "Fournissez le nom de l'infrastructure si possible, ex: Le Mirage, École Westlands" },
+    "q3": { "title": "Q3. Nombre d'infrastructures touchées", "subtitle": "Donnez une estimation approximative" },
+    "q4": { "title": "Q4. Niveau de dommages" },
+    "q5": {
+      "title": "Q5. Débris",
+      "subtitle": "Y a-t-il des débris nécessitant un nettoyage sur ou près du site?",
+      "yes": "OUI, il y a des débris à nettoyer",
+      "no": "NON, il n'y a pas de débris à nettoyer"
+    },
+    "q6": { "title": "Q6. Localisation du sinistre", "subtitle": "Faites glisser la carte pour positionner l'épingle" },
+    "q7": { "title": "Q7. Description" },
+    "q8": { "title": "Q8. Téléchargement de photos" },
+    "back": "Retour",
+    "next": "Suivant",
+    "stepOf": "Étape {{current}} sur {{total}}"
+  },
+  "infra": {
+    "residential": { "label": "Infrastructure résidentielle", "desc": "Maisons et appartements" },
+    "commercial": { "label": "Infrastructure commerciale", "desc": "Marchés, centres commerciaux, hôtels, banques, industries, etc." },
+    "government": { "label": "Bâtiment gouvernemental", "desc": "Bâtiments administratifs, tribunaux, commissariats, casernes de pompiers, etc." },
+    "utility": { "label": "Infrastructure utilitaire", "desc": "Pompes à eau, centrales électriques, stations de traitement des déchets, etc." },
+    "transport": { "label": "Infrastructure de transport et communication", "desc": "Routes, antennes, ponts, gares, stations de bus, etc." },
+    "community": { "label": "Infrastructure communautaire", "desc": "Écoles, hôpitaux, salles communautaires, toilettes publiques, etc." },
+    "recreation": { "label": "Espaces publics / Infrastructure de loisirs", "desc": "Stades, terrains de jeux, édifices religieux, etc." },
+    "other": { "label": "Autre" }
+  },
+  "damage": {
+    "minimal": { "label": "Minimal / Aucun dommage", "desc": "Structurellement sain et fonctionnel, montrant uniquement des dommages cosmétiques" },
+    "partial": { "label": "Partiellement endommagé", "desc": "Réparable, reste utilisable avec prudence" },
+    "complete": { "label": "Complètement détruit", "desc": "Structurellement dangereux ou détruit" }
+  },
+  "incident": {
+    "earthquake": "Séisme",
+    "wildfire": "Incendie de forêt",
+    "flood": "Inondation",
+    "landslide": "Glissement de terrain"
+  }
+}

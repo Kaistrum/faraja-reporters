@@ -1,0 +1,59 @@
+{
+  "reportIncidence": "报告事件",
+  "fillSurvey": "填写调查",
+  "nearYou": "附近",
+  "sortLatest": "最新",
+  "sortOldest": "最旧",
+  "sortNearest": "最近",
+  "loadingMap": "加载地图中...",
+  "survey": {
+    "reportIncident": "报告事件",
+    "submitReport": "提交报告",
+    "tapToPin": "拖动地图将图钉定位到受影响的位置",
+    "pinSetAt": "图钉位置：",
+    "describeHint": "简要描述发生的事情",
+    "descriptionPlaceholder": "例如：建筑物在凌晨6点左右的地震后倒塌...",
+    "pleaseSpecify": "请说明",
+    "camera": "相机",
+    "gallery": "相册",
+    "optional": "可选",
+    "photoOfDamage": "受损基础设施的照片",
+    "q1": { "title": "问1. 受影响的基础设施", "subtitle": "选择所有适用项" },
+    "q2": { "title": "问2. 基础设施名称", "subtitle": "如有请提供基础设施名称，例如：某大厦、某小学" },
+    "q3": { "title": "问3. 受影响的基础设施数量", "subtitle": "给出大概数字" },
+    "q4": { "title": "问4. 损坏程度" },
+    "q5": {
+      "title": "问5. 碎片",
+      "subtitle": "现场或附近是否有需要清理的碎片？",
+      "yes": "是，有需要清理的碎片",
+      "no": "否，没有需要清理的碎片"
+    },
+    "q6": { "title": "问6. 灾害位置", "subtitle": "拖动地图将图钉定位到受影响位置" },
+    "q7": { "title": "问7. 描述" },
+    "q8": { "title": "问8. 上传照片" },
+    "back": "返回",
+    "next": "下一步",
+    "stepOf": "第 {{current}} 步，共 {{total}} 步"
+  },
+  "infra": {
+    "residential": { "label": "住宅基础设施", "desc": "房屋和公寓" },
+    "commercial": { "label": "商业基础设施", "desc": "市场、商场、商店、酒店、银行、工业等" },
+    "government": { "label": "政府建筑", "desc": "行政大楼、法院、警察局、消防站等" },
+    "utility": { "label": "公用事业基础设施", "desc": "水泵、发电厂、废物处理厂等" },
+    "transport": { "label": "交通与通信基础设施", "desc": "道路、通信塔、桥梁、火车站、汽车站等" },
+    "community": { "label": "社区基础设施", "desc": "学校、医院、社区中心、公共厕所等" },
+    "recreation": { "label": "公共空间/休闲基础设施", "desc": "体育场、游乐场、宗教建筑等" },
+    "other": { "label": "其他" }
+  },
+  "damage": {
+    "minimal": { "label": "轻微/无损坏", "desc": "结构完好且正常运转，仅有外观损坏或无明显损坏" },
+    "partial": { "label": "部分损坏", "desc": "可修复，谨慎使用下仍可使用" },
+    "complete": { "label": "完全损坏", "desc": "结构不安全或已被摧毁" }
+  },
+  "incident": {
+    "earthquake": "地震",
+    "wildfire": "野火",
+    "flood": "洪水",
+    "landslide": "山体滑坡"
+  }
+}

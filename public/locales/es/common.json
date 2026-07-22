@@ -1,0 +1,59 @@
+{
+  "reportIncidence": "Reportar un incidente",
+  "fillSurvey": "Llenar formulario",
+  "nearYou": "Cerca de ti",
+  "sortLatest": "Más reciente",
+  "sortOldest": "Más antiguo",
+  "sortNearest": "Más cercano",
+  "loadingMap": "Cargando mapa...",
+  "survey": {
+    "reportIncident": "Reportar incidente",
+    "submitReport": "Enviar reporte",
+    "tapToPin": "Arrastra el mapa para posicionar el pin en la ubicación afectada",
+    "pinSetAt": "Pin ubicado en",
+    "describeHint": "Describe brevemente lo que pasó",
+    "descriptionPlaceholder": "Ej: El edificio colapsó tras el temblor alrededor de las 6am...",
+    "pleaseSpecify": "Por favor especifique",
+    "camera": "Cámara",
+    "gallery": "Galería",
+    "optional": "opcional",
+    "photoOfDamage": "Foto de la infraestructura dañada",
+    "q1": { "title": "P1. Infraestructura afectada", "subtitle": "Seleccione todo lo que aplique" },
+    "q2": { "title": "P2. Nombre(s) de la infraestructura", "subtitle": "Proporcione el nombre si está disponible, ej: El Mirage, Escuela Westlands" },
+    "q3": { "title": "P3. Número de infraestructuras afectadas", "subtitle": "Dé una cifra aproximada" },
+    "q4": { "title": "P4. Nivel de daño" },
+    "q5": {
+      "title": "P5. Escombros",
+      "subtitle": "¿Hay escombros que requieran limpieza en o cerca del sitio?",
+      "yes": "SÍ, hay escombros que necesitan limpieza",
+      "no": "NO, no hay escombros que necesiten limpieza"
+    },
+    "q6": { "title": "P6. Ubicación del desastre", "subtitle": "Arrastra el mapa para posicionar el pin" },
+    "q7": { "title": "P7. Descripción" },
+    "q8": { "title": "P8. Subir fotos" },
+    "back": "Atrás",
+    "next": "Siguiente",
+    "stepOf": "Paso {{current}} de {{total}}"
+  },
+  "infra": {
+    "residential": { "label": "Infraestructura residencial", "desc": "Casas y apartamentos" },
+    "commercial": { "label": "Infraestructura comercial", "desc": "Mercados, centros comerciales, hoteles, bancos, industrias, etc." },
+    "government": { "label": "Edificio gubernamental", "desc": "Edificios administrativos, juzgados, comisarías, estaciones de bomberos, etc." },
+    "utility": { "label": "Infraestructura de servicios", "desc": "Bombas de agua, plantas eléctricas, plantas de tratamiento de residuos, etc." },
+    "transport": { "label": "Infraestructura de transporte y comunicación", "desc": "Carreteras, torres celulares, puentes, estaciones de tren, terminales de bus, etc." },
+    "community": { "label": "Infraestructura comunitaria", "desc": "Escuelas, hospitales, centros comunitarios, baños públicos, etc." },
+    "recreation": { "label": "Espacios públicos / Infraestructura recreativa", "desc": "Estadios, parques infantiles, edificios religiosos, etc." },
+    "other": { "label": "Otro" }
+  },
+  "damage": {
+    "minimal": { "label": "Mínimo / Sin daño", "desc": "Estructuralmente sano y funcional, mostrando solo daños cosméticos" },
+    "partial": { "label": "Parcialmente dañado", "desc": "Reparable, permanece usable con precaución" },
+    "complete": { "label": "Completamente destruido", "desc": "Estructuralmente inseguro o destruido" }
+  },
+  "incident": {
+    "earthquake": "Terremoto",
+    "wildfire": "Incendio forestal",
+    "flood": "Inundación",
+    "landslide": "Deslizamiento de tierra"
+  }
+}

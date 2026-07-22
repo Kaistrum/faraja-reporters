@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@font-face {
+	font-family: "DMSans";
+	src: url("/fonts/DMSans-Regular.ttf");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "DMSans";
+	src: url("/fonts/DMSans-Bold.ttf");
+	font-weight: 700;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "DMSans";
+	src: url("/fonts/DMSans-Medium.ttf");
+	font-weight: 500;
+	font-style: normal;
+}
+
+body {
+	font-family: "DMSans", sans-serif;
+	font-weight: normal;
+	background-color: #f0eee6;
+}
