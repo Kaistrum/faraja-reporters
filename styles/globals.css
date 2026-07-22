@@ -1,28 +1,11 @@
-@import "tailwindcss";
+/* This is the app's single Tailwind entry point. Stratum's own globals.css
+   is pulled in via CSS @import (not a separate JS import) specifically so
+   the @source line below lands in the same Tailwind build root as the
+   `@import "tailwindcss"` it contains — Tailwind's automatic content
+   detection roots itself at whichever file does that import, and skips
+   node_modules by default, so without this, utilities only ever referenced
+   inside Stratum's pre-compiled components (rounded-none,
+   text-text-on-accent, etc.) never get generated. */
+@import "@kaistrum/stratum-ui/styles/globals.css";
 
-@font-face {
-	font-family: "DMSans";
-	src: url("/fonts/DMSans-Regular.ttf");
-	font-weight: 400;
-	font-style: normal;
-}
-
-@font-face {
-	font-family: "DMSans";
-	src: url("/fonts/DMSans-Bold.ttf");
-	font-weight: 700;
-	font-style: normal;
-}
-
-@font-face {
-	font-family: "DMSans";
-	src: url("/fonts/DMSans-Medium.ttf");
-	font-weight: 500;
-	font-style: normal;
-}
-
-body {
-	font-family: "DMSans", sans-serif;
-	font-weight: normal;
-	background-color: #f0eee6;
-}
+@source "../node_modules/@kaistrum/stratum-ui/dist-lib";

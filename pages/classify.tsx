@@ -3,15 +3,12 @@ import { useRef, useState } from "react";
 import {
 	Button,
 	Card,
-	Text,
 	Badge,
 	Progress,
-	SimpleGrid,
-	Stack,
-	Title,
-	Center,
-	Loader
-} from "@mantine/core";
+	Grid,
+	IconButton,
+	Spinner
+} from "@kaistrum/stratum-ui";
 import { IconUpload, IconX, IconPhoto } from "@tabler/icons-react";
 
 type TaskResult = {
@@ -99,12 +96,12 @@ export default function ClassifyPage() {
 				<title>Image Classifier — Crisis Mapping</title>
 			</Head>
 
-			<div className="min-h-screen bg-gray-50 p-6">
+			<div className="min-h-screen bg-bg-surface p-6">
 				<div className="mx-auto max-w-2xl">
-					<Title order={2} mb="xs">Image Classifier</Title>
-					<Text c="dimmed" size="sm" mb="xl">
+					<h2 className="mb-1 text-2xl font-semibold text-text">Image Classifier</h2>
+					<p className="mb-8 text-sm text-text-dim">
 						Upload a disaster photo to get damage severity, humanitarian, and disaster type predictions.
-					</Text>
+					</p>
 
 					{/* Drop zone */}
 					{!preview ? (
@@ -112,9 +109,9 @@ export default function ClassifyPage() {
 							onDragOver={(e) => e.preventDefault()}
 							onDrop={handleDrop}
 							onClick={() => inputRef.current?.click()}
-							className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-gray-300 bg-white px-6 py-16 text-gray-400 transition-colors hover:border-gray-400 hover:bg-gray-50">
+							className="flex cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed border-border bg-bg-card px-6 py-16 text-text-muted transition-colors hover:border-border-strong">
 							<IconPhoto size={40} stroke={1.2} />
-							<Text size="sm">Drop an image here or click to browse</Text>
+							<span className="text-sm">Drop an image here or click to browse</span>
 							<input
 								ref={inputRef}
 								type="file"
@@ -124,87 +121,81 @@ export default function ClassifyPage() {
 							/>
 						</div>
 					) : (
-						<div className="relative overflow-hidden rounded-xl bg-white shadow-sm">
+						<div className="relative overflow-hidden bg-bg-card shadow-sm">
 							<img
 								src={preview}
 								alt="preview"
 								className="max-h-72 w-full object-contain"
 							/>
-							<button
-								type="button"
+							<IconButton
+								aria-label="Remove image"
+								icon={<IconX size={14} />}
+								variant="default"
+								size="sm"
 								onClick={clear}
-								className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-700">
-								<IconX size={14} />
-							</button>
+								className="absolute right-2 top-2"
+							/>
 						</div>
 					)}
 
 					{/* Actions */}
 					{file && (
-						<Button
-							mt="md"
-							fullWidth
-							color="dark"
-							radius="xl"
-							size="md"
-							loading={loading}
-							leftSection={<IconUpload size={16} />}
-							onClick={classify}>
-							Classify image
-						</Button>
+						<div className="mt-4">
+							<Button
+								fullWidth
+								variant="primary"
+								size="md"
+								loading={loading}
+								icon={<IconUpload size={16} />}
+								onClick={classify}>
+								Classify image
+							</Button>
+						</div>
 					)}
 
 					{error && (
-						<Text c="red" size="sm" mt="md">
-							{error}
-						</Text>
+						<p className="mt-4 text-sm text-danger">{error}</p>
 					)}
 
 					{/* Loading */}
 					{loading && (
-						<Center mt="xl">
-							<Stack align="center" gap="xs">
-								<Loader size="sm" color="dark" />
-								<Text size="xs" c="dimmed">Running model inference…</Text>
-							</Stack>
-						</Center>
+						<div className="mt-8 flex flex-col items-center gap-2">
+							<Spinner size={20} />
+							<span className="text-xs text-text-muted">Running model inference…</span>
+						</div>
 					)}
 
 					{/* Results */}
 					{result && (
-						<Stack mt="xl" gap="md">
-							<Title order={4}>Results</Title>
-							<SimpleGrid cols={2} spacing="md">
+						<div className="mt-8 flex flex-col gap-4">
+							<h4 className="text-lg font-semibold text-text">Results</h4>
+							<Grid columns={2} gap="md">
 								{Object.entries(result.results).map(([task, r]) => (
-									<Card key={task} withBorder radius="md" p="md">
-										<Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+									<Card key={task} surface="card" padding="standard">
+										<p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
 											{TASK_LABELS[task] ?? task}
-										</Text>
+										</p>
 										<div className="mb-3 flex items-center justify-between">
-											<Text size="sm" fw={600}>{r.prediction}</Text>
-											<Badge color="dark" variant="light" size="sm">
-												{r.confidence}%
-											</Badge>
+											<span className="text-sm font-semibold text-text">{r.prediction}</span>
+											<Badge variant="info">{r.confidence}%</Badge>
 										</div>
-										<Stack gap={6}>
+										<div className="flex flex-col gap-1.5">
 											{Object.entries(r.scores).map(([cls, score]) => (
-												<div key={cls}>
+												<div
+													key={cls}
+													className={cls === r.prediction ? undefined : "opacity-50"}>
 													<div className="mb-0.5 flex justify-between">
-														<Text size="xs" c="dimmed">{cls}</Text>
-														<Text size="xs" c="dimmed">{score}%</Text>
+														<span className="text-xs text-text-muted">{cls}</span>
+														<span className="text-xs text-text-muted">{score}%</span>
 													</div>
-													<Progress
-														value={score}
-														size="xs"
-														color={cls === r.prediction ? "dark" : "gray"}
-													/>
+													<Progress value={score} />
 												</div>
 											))}
-										</Stack>
+										</div>
 									</Card>
 								))}
-							</SimpleGrid>
-						</Stack>
+							</Grid>
+						</div>
 					)}
 				</div>
 			</div>

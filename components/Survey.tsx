@@ -1,16 +1,16 @@
 import dynamic from "next/dynamic";
+import { Drawer } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { Carousel } from "@mantine/carousel";
 import {
 	Select,
 	Button,
-	Drawer,
 	Checkbox,
 	Radio,
 	Textarea,
 	Stack,
-	Text
-} from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import { Carousel } from "@mantine/carousel";
+	IconButton
+} from "@kaistrum/stratum-ui";
 import { useRef } from "react";
 import type { EmblaCarouselType } from "embla-carousel";
 import {
@@ -29,7 +29,7 @@ import useSWRMutation from "swr/mutation";
 const PinDropMap = dynamic(() => import("@/components/PinDropMap"), {
 	ssr: false,
 	loading: () => (
-		<div className="flex h-48 items-center justify-center rounded-lg bg-gray-100 text-sm text-gray-400">
+		<div className="flex h-48 items-center justify-center bg-bg-card text-sm text-text-muted">
 			Loading map...
 		</div>
 	)
@@ -40,7 +40,7 @@ function RequiredStar() {
 		<IconAsterisk
 			size={8}
 			stroke={3}
-			className="mb-2 ml-0.5 inline text-red-500"
+			className="mb-2 ml-0.5 inline text-danger"
 		/>
 	);
 }
@@ -57,12 +57,12 @@ function SlideShell({
 	children: React.ReactNode;
 }) {
 	return (
-		<Stack gap="xs" px={4} py="xs" style={{ minHeight: 320 }}>
-			<p className="text-sm font-semibold">
+		<Stack gap="xs" className="px-1 py-2" style={{ minHeight: 320 }}>
+			<p className="text-sm font-semibold text-text">
 				{title}
 				{required && <RequiredStar />}
 			</p>
-			{subtitle && <span className="text-xs text-gray-500">{subtitle}</span>}
+			{subtitle && <span className="text-xs text-text-muted">{subtitle}</span>}
 			{children}
 		</Stack>
 	);
@@ -249,6 +249,15 @@ export default function Survey({
 		});
 	};
 
+	const toggleInfra = (value: string) => {
+		formik.setFieldValue(
+			"infrastructure",
+			formik.values.infrastructure.includes(value)
+				? formik.values.infrastructure.filter((v) => v !== value)
+				: [...formik.values.infrastructure, value]
+		);
+	};
+
 	const prev = () => embla?.scrollPrev();
 	const next = () => embla?.scrollNext();
 	const isLast = current === TOTAL_SLIDES - 1;
@@ -275,22 +284,12 @@ export default function Survey({
 				className="flex h-full flex-col overflow-hidden">
 				{/* Incident type — always visible at top */}
 				<Select
-					data={INCIDENT_TYPES}
+					options={INCIDENT_TYPES}
 					value={formik.values.incidentType}
-					onChange={(v) =>
-						formik.setFieldValue("incidentType", v ?? "earthquake")
+					onChange={(e) =>
+						formik.setFieldValue("incidentType", e.target.value || "earthquake")
 					}
-					mb="md"
-					comboboxProps={{ withinPortal: true }}
-					styles={{
-						input: {
-							textAlign: "center",
-							fontWeight: 600,
-							fontSize: "1.1rem",
-							border: "1px solid #e5e7eb",
-							borderRadius: "0.5rem"
-						}
-					}}
+					className="mb-4 text-center text-lg font-semibold"
 				/>
 
 				{/* Step indicator */}
@@ -300,7 +299,7 @@ export default function Survey({
 							<div
 								key={i}
 								className={`h-1.5 w-5 rounded-full transition-colors ${
-									i === current ? "bg-gray-800" : "bg-gray-200"
+									i === current ? "bg-accent" : "bg-border"
 								}`}
 							/>
 						))}
@@ -326,38 +325,27 @@ export default function Survey({
 							title={t("survey.q1.title")}
 							subtitle={t("survey.q1.subtitle")}
 							required>
-							<Checkbox.Group
-								value={formik.values.infrastructure}
-								onChange={(v) => formik.setFieldValue("infrastructure", v)}>
-								<Stack gap="sm">
-									{INFRASTRUCTURE_OPTIONS.map((opt) => (
-										<Checkbox
-											key={opt.value}
-											value={opt.value}
-											label={
-												<div>
-													<span className="text-sm">{opt.label}</span>
-													{opt.description && (
-														<p className="text-xs text-gray-500">
-															({opt.description})
-														</p>
-													)}
-												</div>
-											}
-										/>
-									))}
-								</Stack>
-							</Checkbox.Group>
+							<Stack gap="sm">
+								{INFRASTRUCTURE_OPTIONS.map((opt) => (
+									<Checkbox
+										key={opt.value}
+										checked={formik.values.infrastructure.includes(opt.value)}
+										onChange={() => toggleInfra(opt.value)}
+										label={opt.label}
+										description={
+											opt.description ? `(${opt.description})` : undefined
+										}
+									/>
+								))}
+							</Stack>
 							{formik.values.infrastructure.includes("other") && (
 								<Textarea
 									name="otherText"
 									placeholder={t("survey.pleaseSpecify")}
 									value={formik.values.otherText}
 									onChange={formik.handleChange}
-									size="sm"
-									ml="xl"
-									autosize
-									minRows={2}
+									rows={2}
+									className="ml-8"
 								/>
 							)}
 						</SlideShell>
@@ -372,9 +360,7 @@ export default function Survey({
 								name="infraName"
 								value={formik.values.infraName}
 								onChange={formik.handleChange}
-								size="sm"
-								autosize
-								minRows={3}
+								rows={3}
 							/>
 						</SlideShell>
 					</Carousel.Slide>
@@ -385,50 +371,52 @@ export default function Survey({
 							title={t("survey.q3.title")}
 							subtitle={t("survey.q3.subtitle")}
 							required>
-							<Radio.Group
-								value={formik.values.infraCount}
-								onChange={(v) => formik.setFieldValue("infraCount", v)}>
-								<Stack gap="sm">
-									{["1", "2 - 5", "6 - 20", "More than 20"].map((opt) => (
-										<Radio key={opt} value={opt} label={opt} />
-									))}
-								</Stack>
-							</Radio.Group>
+							<Stack gap="sm">
+								{["1", "2 - 5", "6 - 20", "More than 20"].map((opt) => (
+									<Radio
+										key={opt}
+										name="infraCount"
+										checked={formik.values.infraCount === opt}
+										onChange={() => formik.setFieldValue("infraCount", opt)}
+										label={opt}
+									/>
+								))}
+							</Stack>
 						</SlideShell>
 					</Carousel.Slide>
 
 					{/* Slide 4 — Q4: Damage level */}
 					<Carousel.Slide>
 						<SlideShell title={t("survey.q4.title")} required>
-							<Radio.Group
-								value={formik.values.damageClass}
-								onChange={(v) => formik.setFieldValue("damageClass", v)}>
-								<Stack gap="sm">
-									{DAMAGE_OPTIONS.map((opt) => (
-										<div
-											key={opt.value}
-											className={`cursor-pointer rounded-lg border p-3 transition-colors ${
-												formik.values.damageClass === opt.value
-													? "border-gray-800 bg-gray-50"
-													: "border-gray-200"
-											}`}>
-											<Radio
-												value={opt.value}
-												label={
-													<div>
-														<span className="text-sm font-medium">
-															{opt.label}
-														</span>
-														<p className="text-xs text-gray-500">
-															{opt.description}
-														</p>
-													</div>
-												}
-											/>
-										</div>
-									))}
-								</Stack>
-							</Radio.Group>
+							<Stack gap="sm">
+								{DAMAGE_OPTIONS.map((opt) => (
+									<div
+										key={opt.value}
+										className={`cursor-pointer border p-3 transition-colors ${
+											formik.values.damageClass === opt.value
+												? "border-border-strong bg-bg-card"
+												: "border-border"
+										}`}>
+										<Radio
+											name="damageClass"
+											checked={formik.values.damageClass === opt.value}
+											onChange={() =>
+												formik.setFieldValue("damageClass", opt.value)
+											}
+											label={
+												<div>
+													<span className="text-sm font-medium">
+														{opt.label}
+													</span>
+													<p className="text-xs text-text-muted">
+														{opt.description}
+													</p>
+												</div>
+											}
+										/>
+									</div>
+								))}
+							</Stack>
 						</SlideShell>
 					</Carousel.Slide>
 
@@ -438,14 +426,20 @@ export default function Survey({
 							title={t("survey.q5.title")}
 							subtitle={t("survey.q5.subtitle")}
 							required>
-							<Radio.Group
-								value={formik.values.debris}
-								onChange={(v) => formik.setFieldValue("debris", v)}>
-								<Stack gap="sm">
-									<Radio value="yes" label={t("survey.q5.yes")} />
-									<Radio value="no" label={t("survey.q5.no")} />
-								</Stack>
-							</Radio.Group>
+							<Stack gap="sm">
+								<Radio
+									name="debris"
+									checked={formik.values.debris === "yes"}
+									onChange={() => formik.setFieldValue("debris", "yes")}
+									label={t("survey.q5.yes")}
+								/>
+								<Radio
+									name="debris"
+									checked={formik.values.debris === "no"}
+									onChange={() => formik.setFieldValue("debris", "no")}
+									label={t("survey.q5.no")}
+								/>
+							</Stack>
 						</SlideShell>
 					</Carousel.Slide>
 
@@ -456,7 +450,7 @@ export default function Survey({
 							subtitle={t("survey.q6.subtitle")}
 							required>
 							{formik.values.location && (
-								<span className="text-xs text-teal-600">
+								<span className="text-xs text-accent">
 									{t("survey.pinSetAt")} {formik.values.location[0].toFixed(5)},{" "}
 									{formik.values.location[1].toFixed(5)}
 								</span>
@@ -478,9 +472,7 @@ export default function Survey({
 								value={formik.values.description}
 								onChange={formik.handleChange}
 								placeholder={t("survey.descriptionPlaceholder")}
-								size="sm"
-								autosize
-								minRows={4}
+								rows={4}
 							/>
 						</SlideShell>
 					</Carousel.Slide>
@@ -514,34 +506,38 @@ export default function Survey({
 											<img
 												src={p.preview}
 												alt={`photo-${i}`}
-												className="h-full w-full object-cover rounded"
+												className="h-full w-full object-cover"
 											/>
-											<button
-												type="button"
+											<IconButton
+												aria-label="Remove photo"
+												icon={<IconX size={10} stroke={2.5} />}
+												variant="default"
+												size="sm"
 												onClick={() => removePhoto(i)}
-												className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-800 text-white">
-												<IconX size={10} stroke={2.5} />
-											</button>
+												className="absolute -right-1.5 -top-1.5 !h-5 !w-5 !rounded-full"
+											/>
 										</div>
 									))}
 								</div>
 							)}
 
 							<div className="flex gap-2">
-								<button
+								<Button
 									type="button"
-									onClick={() => cameraRef.current?.click()}
-									className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 py-3 text-sm text-gray-500 hover:bg-gray-50">
-									<IconCamera size={16} />
+									variant="outline"
+									className="flex-1"
+									icon={<IconCamera size={16} />}
+									onClick={() => cameraRef.current?.click()}>
 									{t("survey.camera")}
-								</button>
-								<button
+								</Button>
+								<Button
 									type="button"
-									onClick={() => galleryRef.current?.click()}
-									className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 py-3 text-sm text-gray-500 hover:bg-gray-50">
-									<IconPhoto size={16} />
+									variant="outline"
+									className="flex-1"
+									icon={<IconPhoto size={16} />}
+									onClick={() => galleryRef.current?.click()}>
 									{t("survey.gallery")}
-								</button>
+								</Button>
 							</div>
 						</SlideShell>
 					</Carousel.Slide>
@@ -552,25 +548,23 @@ export default function Survey({
 					{current > 0 && (
 						<Button
 							type="button"
-							variant="default"
-							radius="xl"
+							variant="outline"
 							fullWidth
 							size="md"
 							onClick={prev}
-							leftSection={<IconChevronLeft size={16} />}>
+							icon={<IconChevronLeft size={16} />}>
 							{t("survey.back")}
 						</Button>
 					)}
 					<Button
 						type="button"
 						fullWidth
-						color="dark"
-						radius="xl"
+						variant="primary"
 						size="md"
 						loading={isMutating}
-						onClick={isLast ? () => formik.submitForm() : next}
-						rightSection={!isLast ? <IconChevronRight size={16} /> : undefined}>
+						onClick={isLast ? () => formik.submitForm() : next}>
 						{isLast ? t("survey.submitReport") : t("survey.next")}
+						{!isLast && <IconChevronRight size={16} className="ml-1 inline" />}
 					</Button>
 				</div>
 			</form>

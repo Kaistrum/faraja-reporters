@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, LayersControl, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { ActionIcon, Tooltip } from "@mantine/core";
+import { IconButton, Tooltip } from "@kaistrum/stratum-ui";
 
 import ChatBot from "./ChatBot";
 
@@ -103,18 +103,18 @@ export default function Map() {
 				<UserLocation />
 			</MapContainer>
 
-			<Tooltip label="Crisis Assistant" position="left">
-				<ActionIcon
-					size={72}
-					radius={72}
-					color="dark"
-					variant="filled"
-					aria-label="Open crisis assistant"
-					onClick={() => setChatOpen(true)}
-					style={{ position: "absolute", bottom: 24, right: 16, zIndex: 100 }}>
-					<img src="/chatbot.gif" alt="chatbot" width={36} height={36} />
-				</ActionIcon>
-			</Tooltip>
+			<div style={{ position: "absolute", bottom: 24, right: 16, zIndex: 100 }}>
+				<Tooltip content="Crisis Assistant" placement="left">
+					<IconButton
+						aria-label="Open crisis assistant"
+						variant="accent"
+						size="lg"
+						icon={<img src="/chatbot.gif" alt="" width={36} height={36} />}
+						onClick={() => setChatOpen(true)}
+						className="!h-[72px] !w-[72px] !rounded-full"
+					/>
+				</Tooltip>
+			</div>
 
 			<ChatBot opened={chatOpen} onClose={() => setChatOpen(false)} />
 		</div>

@@ -1,6 +1,6 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
-import { Select, Button, Group } from "@mantine/core";
+import { Select, Button, ThemeToggle } from "@kaistrum/stratum-ui";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { serverSideTranslations } from "next-i18next/pages/serverSideTranslations";
@@ -24,45 +24,35 @@ export default function Home() {
 	const [surveyOpen, setSurveyOpen] = useState(false);
 
 	const currentLocale = router.locale ?? "en";
-	const langAbbrev =
-		LANGUAGES.find((l) => l.value === currentLocale)
-			?.label.slice(0, 2)
-			.toUpperCase() ?? "EN";
 
-	const handleLocaleChange = (v: string | null) => {
+	const handleLocaleChange = (v: string) => {
 		if (!v) return;
 		router.push(router.pathname, router.asPath, { locale: v });
 	};
 
 	return (
-		<div className="flex h-screen flex-col" style={{ background: "#f0eee6" }}>
+		<div className="flex h-screen flex-col bg-bg">
 			<div className="mx-auto w-full max-w-sm px-4 pt-8">
-				{/* Language selector */}
-				<div className="mb-8 flex justify-center">
+				{/* Language selector + theme toggle */}
+				<div className="mb-8 flex items-center justify-center gap-2">
 					<Select
-						data={LANGUAGES}
+						options={LANGUAGES}
 						value={currentLocale}
-						onChange={handleLocaleChange}
-						leftSection={
-							<span className="rounded bg-[#e5e3db] px-1.5 py-0.5 text-xs font-semibold">
-								{langAbbrev}
-							</span>
-						}
-						leftSectionWidth={48}
+						onChange={(e) => handleLocaleChange(e.target.value)}
 					/>
+					<ThemeToggle size="sm" />
 				</div>
 
 				{/* Reporting */}
-				<Group mb="md" gap="sm" wrap="nowrap">
+				<div className="mb-4">
 					<Button
 						fullWidth
-						radius="xl"
 						size="md"
-						color="dark"
+						variant="primary"
 						onClick={() => setSurveyOpen(true)}>
 						{t("reportIncidence")}
 					</Button>
-				</Group>
+				</div>
 			</div>
 
 			{/* Map fills remaining space */}
