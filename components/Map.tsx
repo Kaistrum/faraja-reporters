@@ -3,10 +3,82 @@ import { MapContainer, TileLayer, LayersControl, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { IconButton, Tooltip } from "@kaistrum/stratum-ui";
+import { getTileUrlsForBounds, type TileLayerConfig } from "@/lib/tileCache";
 
 import ChatBot from "./ChatBot";
 
 const { BaseLayer } = LayersControl;
+
+// Shared with the <TileLayer> URLs below so the warm-up cache never drifts
+// out of sync with what's actually rendered.
+const TILE_LAYERS: Record<string, TileLayerConfig> = {
+	Streets: {
+		urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+		subdomains: ["a", "b", "c"]
+	},
+	Satellite: {
+		urlTemplate:
+			"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+		subdomains: [""]
+	},
+	Dark: {
+		urlTemplate: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+		subdomains: ["a", "b", "c", "d"]
+	},
+	Buildings: {
+		urlTemplate: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+		subdomains: ["a", "b", "c"]
+	}
+};
+
+const WARM_UP_INTERVAL_MS = 5 * 60 * 1000;
+
+/** Periodically pre-fetches tiles for the current viewport + a buffer while
+ * online, so panning slightly after going offline still hits cache. Actual
+ * caching happens in the service worker's fetch handler (public/sw.js) —
+ * this just requests the URLs so that handler sees them. */
+function TileCacheWarmer() {
+	const map = useMap();
+	const activeLayerRef = useRef("Streets");
+
+	useEffect(() => {
+		const onBaseLayerChange = (e: L.LayersControlEvent) => {
+			if (e.name in TILE_LAYERS) activeLayerRef.current = e.name;
+		};
+		map.on("baselayerchange", onBaseLayerChange);
+		return () => {
+			map.off("baselayerchange", onBaseLayerChange);
+		};
+	}, [map]);
+
+	useEffect(() => {
+		const warmUp = () => {
+			if (!navigator.onLine) return;
+			const layer = TILE_LAYERS[activeLayerRef.current];
+			if (!layer) return;
+			const bounds = map.getBounds().pad(1);
+			const urls = getTileUrlsForBounds(
+				{
+					west: bounds.getWest(),
+					south: bounds.getSouth(),
+					east: bounds.getEast(),
+					north: bounds.getNorth()
+				},
+				map.getZoom(),
+				layer
+			);
+			urls.forEach((url) => {
+				fetch(url).catch(() => {});
+			});
+		};
+
+		warmUp();
+		const id = setInterval(warmUp, WARM_UP_INTERVAL_MS);
+		return () => clearInterval(id);
+	}, [map]);
+
+	return null;
+}
 
 export function UserLocation() {
 	const map = useMap();
@@ -76,31 +148,32 @@ export default function Map() {
 				<LayersControl position="topright">
 					<BaseLayer name="Streets" checked>
 						<TileLayer
-							url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+							url={TILE_LAYERS.Streets.urlTemplate}
 							attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 						/>
 					</BaseLayer>
 					<BaseLayer name="Satellite">
 						<TileLayer
-							url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+							url={TILE_LAYERS.Satellite.urlTemplate}
 							attribution="Tiles &copy; Esri &mdash; Source: Esri, USGS, NOAA"
 						/>
 					</BaseLayer>
 					<BaseLayer name="Dark">
 						<TileLayer
-							url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+							url={TILE_LAYERS.Dark.urlTemplate}
 							attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 						/>
 					</BaseLayer>
 					<BaseLayer name="Buildings">
 						<TileLayer
-							url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+							url={TILE_LAYERS.Buildings.urlTemplate}
 							attribution='&copy; <a href="https://opentopomap.org">OpenTopoMap</a> contributors'
 							maxZoom={17}
 						/>
 					</BaseLayer>
 				</LayersControl>
 				<UserLocation />
+				<TileCacheWarmer />
 			</MapContainer>
 
 			<div style={{ position: "absolute", bottom: 24, right: 16, zIndex: 100 }}>

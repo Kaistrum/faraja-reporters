@@ -25,6 +25,7 @@ import { useFormik } from "formik";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import useSWRMutation from "swr/mutation";
+import { save_pending_survey, make_client_id } from "@/lib/offlineSurveys";
 
 const PinDropMap = dynamic(() => import("@/components/PinDropMap"), {
 	ssr: false,
@@ -192,6 +193,38 @@ export default function Survey({
 			location: null as [number, number] | null
 		},
 		onSubmit: async (values, { resetForm }) => {
+			const queueOffline = async (message: string) => {
+				await save_pending_survey(
+					{
+						incidentType: values.incidentType,
+						infrastructure: values.infrastructure,
+						otherText: values.otherText,
+						infraName: values.infraName,
+						infraCount: values.infraCount,
+						damageClass: values.damageClass,
+						debris: values.debris,
+						description: values.description,
+						location: values.location,
+						client_id: make_client_id()
+					},
+					photos[0]?.file ?? null
+				);
+				notifications.show({
+					title: "Saved offline",
+					message,
+					color: "blue"
+				});
+				resetForm();
+				setPhotos([]);
+				setCurrent(0);
+				setSurveyOpen(false);
+			};
+
+			if (!navigator.onLine) {
+				await queueOffline("Your report is queued and will send once you're back online.");
+				return;
+			}
+
 			try {
 				await trigger({
 					incidentType: values.incidentType,
@@ -214,12 +247,8 @@ export default function Survey({
 				setPhotos([]);
 				setCurrent(0);
 				setSurveyOpen(false);
-			} catch (err) {
-				notifications.show({
-					title: "Submission failed",
-					message: err instanceof Error ? err.message : "Unknown error",
-					color: "red"
-				});
+			} catch {
+				await queueOffline("Couldn't reach the server — your report is queued and will retry automatically.");
 			}
 		}
 	});

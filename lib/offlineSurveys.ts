@@ -5,12 +5,12 @@ const DB_VERSION = 1;
 const STORE = "pending";
 
 export interface PendingSurveyFields {
-	incident_type: string;
+	incidentType: string;
 	infrastructure: string[];
-	other_text: string;
-	infra_name: string;
-	infra_count: string;
-	damage_class: string;
+	otherText: string;
+	infraName: string;
+	infraCount: string;
+	damageClass: string;
 	debris: string;
 	description: string;
 	location: [number, number] | null;
@@ -77,12 +77,12 @@ export async function get_pending_count(): Promise<number> {
 
 async function try_resend(record: PendingSurveyRecord): Promise<boolean> {
 	const fd = new FormData();
-	fd.append("incident_type", record.fields.incident_type);
+	fd.append("incidentType", record.fields.incidentType);
 	record.fields.infrastructure.forEach((v) => fd.append("infrastructure", v));
-	fd.append("other_text", record.fields.other_text);
-	fd.append("infra_name", record.fields.infra_name);
-	fd.append("infra_count", record.fields.infra_count);
-	fd.append("damage_class", record.fields.damage_class);
+	fd.append("otherText", record.fields.otherText);
+	fd.append("infraName", record.fields.infraName);
+	fd.append("infraCount", record.fields.infraCount);
+	fd.append("damageClass", record.fields.damageClass);
 	fd.append("debris", record.fields.debris);
 	fd.append("description", record.fields.description);
 	fd.append("client_id", record.fields.client_id);
