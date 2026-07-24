@@ -1,43 +1,92 @@
-const TILE_CACHE = "map-tiles-v1";
-const TILE_HOSTS = [
-	"tile.openstreetmap.org",
-	"server.arcgisonline.com",
-	"basemaps.cartocdn.com",
-	"tile.opentopomap.org"
-];
+/**
+ * Copyright 2018 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-self.addEventListener("install", (event) => {
-	self.skipWaiting();
-});
+// If the loader is already loaded, just stop.
+if (!self.define) {
+  let registry = {};
 
-self.addEventListener("activate", (event) => {
-	event.waitUntil(self.clients.claim());
-});
+  // Used for `eval` and `importScripts` where we can't get script URL by other means.
+  // In both cases, it's safe to use a global var because those functions are synchronous.
+  let nextDefineUri;
 
-function isTileRequest(url) {
-	return TILE_HOSTS.some((host) => url.hostname.endsWith(host));
+  const singleRequire = (uri, parentUri) => {
+    uri = new URL(uri + ".js", parentUri).href;
+    return registry[uri] || (
+      
+        new Promise(resolve => {
+          if ("document" in self) {
+            const script = document.createElement("script");
+            script.src = uri;
+            script.onload = resolve;
+            document.head.appendChild(script);
+          } else {
+            nextDefineUri = uri;
+            importScripts(uri);
+            resolve();
+          }
+        })
+      
+      .then(() => {
+        let promise = registry[uri];
+        if (!promise) {
+          throw new Error(`Module ${uri} didn’t register its module`);
+        }
+        return promise;
+      })
+    );
+  };
+
+  self.define = (depsNames, factory) => {
+    const uri = nextDefineUri || ("document" in self ? document.currentScript.src : "") || location.href;
+    if (registry[uri]) {
+      // Module is already loading or loaded.
+      return;
+    }
+    let exports = {};
+    const require = depUri => singleRequire(depUri, uri);
+    const specialDeps = {
+      module: { uri },
+      exports,
+      require
+    };
+    registry[uri] = Promise.all(depsNames.map(
+      depName => specialDeps[depName] || require(depName)
+    )).then(deps => {
+      factory(...deps);
+      return exports;
+    });
+  };
 }
+define(['./workbox-7144475a'], (function (workbox) { 'use strict';
 
-// Stale-while-revalidate: serve the cached tile immediately if present, and
-// refresh the cache in the background — organically caches every tile the
-// user has seen while online, and serves them back when offline.
-async function handleTileRequest(request) {
-	const cache = await caches.open(TILE_CACHE);
-	const cached = await cache.match(request);
+  importScripts();
+  self.skipWaiting();
+  workbox.clientsClaim();
+  workbox.registerRoute("/", new workbox.NetworkFirst({
+    "cacheName": "start-url",
+    plugins: [{
+      cacheWillUpdate: async ({
+        response: e
+      }) => e && "opaqueredirect" === e.type ? new Response(e.body, {
+        status: 200,
+        statusText: "OK",
+        headers: e.headers
+      }) : e
+    }]
+  }), 'GET');
+  workbox.registerRoute(/.*/i, new workbox.NetworkOnly({
+    "cacheName": "dev",
+    plugins: []
+  }), 'GET');
 
-	const networkFetch = fetch(request)
-		.then((response) => {
-			if (response && response.ok) cache.put(request, response.clone());
-			return response;
-		})
-		.catch(() => undefined);
-
-	return cached ?? (await networkFetch) ?? Response.error();
-}
-
-self.addEventListener("fetch", (event) => {
-	const url = new URL(event.request.url);
-	if (event.request.method === "GET" && isTileRequest(url)) {
-		event.respondWith(handleTileRequest(event.request));
-	}
-});
+}));

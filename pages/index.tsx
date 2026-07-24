@@ -33,6 +33,15 @@ export default function Home() {
 	return (
 		<div className="flex h-screen flex-col bg-bg">
 			<div className="mx-auto w-full max-w-sm px-4 pt-8">
+				{/* Header */}
+				<div className="mb-6 flex justify-start">
+					<img
+						src="/logo/faraja-header.png"
+						alt="Faraja — Protect · Report · Respond"
+						className="h-auto w-full max-w-[180px]"
+					/>
+				</div>
+
 				{/* Language selector + theme toggle */}
 				<div className="mb-8 flex items-center justify-center gap-2">
 					<Select
