@@ -6,6 +6,17 @@ export default function Document() {
 		<Html lang="en" {...mantineHtmlProps}>
 			<Head>
 				<ColorSchemeScript defaultColorScheme="auto" />
+				{/* Stratum UI's ThemeProvider defaults to dark and only applies its
+				    `.light` class inside a useEffect (after first paint, and never
+				    at all on a first-ever visit with no stored preference) — this
+				    caused a dark/black flash before hydration. Applying it here,
+				    blocking, before paint, matches what defaultTheme="light" in
+				    _app.tsx already intends. */}
+				<script
+					dangerouslySetInnerHTML={{
+						__html: `(function(){try{var t=localStorage.getItem("design-system-theme")||"light";document.documentElement.classList.toggle("light",t==="light");}catch(e){}})();`
+					}}
+				/>
 				<meta
 					name="viewport"
 					content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"

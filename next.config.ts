@@ -60,7 +60,7 @@ const withPWA = withPWAInit({
 				handler: "StaleWhileRevalidate",
 				options: {
 					cacheName: "map-tiles-v1",
-					expiration: { maxEntries: 2000, maxAgeSeconds: 30 * 24 * 60 * 60 },
+					expiration: { maxEntries: 2000, maxAgeSeconds: 6 * 60 * 60 },
 					cacheableResponse: { statuses: [0, 200] }
 				}
 			},

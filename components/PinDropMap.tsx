@@ -7,6 +7,7 @@ import {
 	useMapEvents
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { notifications } from "@mantine/notifications";
 import { UserLocation } from "./Map";
 
 const { BaseLayer } = LayersControl;
@@ -23,7 +24,13 @@ function FlyToUser() {
 					duration: 1
 				});
 			},
-			null,
+			() => {
+				notifications.show({
+					title: "Couldn't get your location",
+					message: "Drag the map to drop the pin on the right spot.",
+					color: "yellow"
+				});
+			},
 			{ enableHighAccuracy: true, timeout: 10000 }
 		);
 	}, [map]);
@@ -32,8 +39,10 @@ function FlyToUser() {
 }
 
 function CenterTracker({
+	value,
 	onChange
 }: {
+	value: [number, number] | null;
 	onChange: (latlng: [number, number]) => void;
 }) {
 	const onChangeRef = useRef(onChange);
@@ -47,6 +56,11 @@ function CenterTracker({
 	});
 
 	useEffect(() => {
+		// Only report the map's starting center if it was already a real,
+		// previously-picked location — not FlyToUser's hardcoded fallback
+		// center, which would otherwise look like an auto-picked location
+		// even when geolocation hasn't resolved (or was denied) yet.
+		if (!value) return;
 		const { lat, lng } = map.getCenter();
 		onChangeRef.current([lat, lng]);
 	}, [map]);
@@ -99,7 +113,7 @@ export default function PinDropMap({
 				</LayersControl>
 				<FlyToUser />
 				<UserLocation />
-				<CenterTracker onChange={onChange} />
+				<CenterTracker value={value} onChange={onChange} />
 			</MapContainer>
 
 			{/* Fixed pin always at map center */}
