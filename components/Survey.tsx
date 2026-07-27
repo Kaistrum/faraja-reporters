@@ -240,7 +240,7 @@ export default function Survey({
 				});
 				notifications.show({
 					title: "Report submitted",
-					message: "Your incident report has been queued successfully.",
+					message: "Your incident report has been sent successfully.",
 					color: "teal"
 				});
 				resetForm();
