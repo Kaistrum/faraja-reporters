@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 // Faraja AI service — the shared crisis-mapping brain. Server-side only.
-const FARAJA_URL = (process.env.FARAJA_URL ?? "http://localhost:8088").replace(/\/+$/, "");
+const FARAJA_URL = (process.env.FARAJA_URL ?? "http://5.189.150.44:8088").replace(/\/+$/, "");
 
 interface ChatMessage {
 	role: "user" | "assistant";
