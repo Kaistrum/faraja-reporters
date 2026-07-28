@@ -9,7 +9,7 @@ export const config = {
 // REPORTS_API_URL now points at the report queue — it takes the survey
 // payload (image included, as base64) as-is and handles storage/dispatch
 // from there, so this route no longer talks to Cloudinary directly.
-const REPORTS_API_URL = (process.env.REPORTS_API_URL ?? "http://localhost:5000/reports").trim();
+const REPORTS_API_URL = (process.env.REPORTS_API_URL ?? "http://5.189.150.44:6000/survey").trim();
 
 interface SurveyImage {
 	data: string; // base64-encoded bytes
