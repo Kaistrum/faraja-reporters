@@ -1,6 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import formidable from "formidable";
 import fs from "fs";
+import http from "http";
+import https from "https";
+import { URL } from "url";
 
 export const config = {
 	api: { bodyParser: false }
@@ -43,6 +46,44 @@ async function readImage(imageFile: formidable.File): Promise<SurveyImage> {
 	}
 }
 
+// The queue listens on :6000, which Node's fetch()/undici refuses to dial —
+// it's on the Fetch spec's "bad port" blocklist (shared with browsers,
+// reserved for X11). http.request has no such restriction, so it's used
+// here instead of fetch for this one upstream call.
+function postJson(url: string, body: unknown): Promise<{ status: number; json: unknown }> {
+	return new Promise((resolve, reject) => {
+		const target = new URL(url);
+		const payload = JSON.stringify(body);
+		const client = target.protocol === "https:" ? https : http;
+
+		const req = client.request(
+			target,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"Content-Length": Buffer.byteLength(payload)
+				}
+			},
+			(res) => {
+				const chunks: Buffer[] = [];
+				res.on("data", (chunk) => chunks.push(chunk));
+				res.on("end", () => {
+					const raw = Buffer.concat(chunks).toString("utf8");
+					try {
+						resolve({ status: res.statusCode ?? 502, json: raw ? JSON.parse(raw) : null });
+					} catch (err) {
+						reject(err);
+					}
+				});
+			}
+		);
+		req.on("error", reject);
+		req.write(payload);
+		req.end();
+	});
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
 	if (req.method !== "POST") {
 		return res.status(405).json({ error: "Method not allowed" });
@@ -75,17 +116,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 	};
 
 	try {
-		const upstream = await fetch(REPORTS_API_URL, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(surveyData)
-		});
-
-		const data = await upstream.json();
-		return res.status(upstream.status).json(data);
-	} catch {
+		const upstream = await postJson(REPORTS_API_URL, surveyData);
+		return res.status(upstream.status).json(upstream.json);
+	} catch (err) {
 		// Queue unreachable — placeholder ack so the offline queue + sync
 		// flow still completes end-to-end without it.
+		console.error("REPORTS_API_URL unreachable:", REPORTS_API_URL, err);
 		return res.status(202).json({ queued: true, placeholder: true });
 	}
 }
