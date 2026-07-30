@@ -6,6 +6,23 @@
   "sortOldest": "Oldest",
   "sortNearest": "Nearest",
   "loadingMap": "Loading map...",
+  "intro": {
+    "skip": "Skip",
+    "next": "Next",
+    "getStarted": "Get started",
+    "slide1": {
+      "title": "Welcome to Faraja",
+      "body": "Faraja helps communities report and map disaster damage in real time, so responders can act fast when it matters most."
+    },
+    "slide2": {
+      "title": "Report in minutes",
+      "body": "Drop a pin on the map, snap a photo, and answer a few quick questions about the damage you're seeing."
+    },
+    "slide3": {
+      "title": "No signal? No problem",
+      "body": "Faraja works even without an internet connection — your report is saved on your device and sent automatically once you're back online."
+    }
+  },
   "survey": {
     "reportIncident": "Report Incident",
     "submitReport": "Submit report",

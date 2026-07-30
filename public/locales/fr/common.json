@@ -6,6 +6,23 @@
   "sortOldest": "Ancien",
   "sortNearest": "Plus proche",
   "loadingMap": "Chargement de la carte...",
+  "intro": {
+    "skip": "Passer",
+    "next": "Suivant",
+    "getStarted": "Commencer",
+    "slide1": {
+      "title": "Bienvenue sur Faraja",
+      "body": "Faraja aide les communautés à signaler et cartographier les dégâts causés par les catastrophes en temps réel, afin que les secours puissent agir rapidement quand cela compte le plus."
+    },
+    "slide2": {
+      "title": "Signalez en quelques minutes",
+      "body": "Placez une épingle sur la carte, prenez une photo et répondez à quelques questions rapides sur les dégâts observés."
+    },
+    "slide3": {
+      "title": "Pas de réseau ? Aucun problème",
+      "body": "Faraja fonctionne même sans connexion internet — votre signalement est enregistré sur votre appareil et envoyé automatiquement dès que vous êtes de nouveau en ligne."
+    }
+  },
   "survey": {
     "reportIncident": "Signaler un incident",
     "submitReport": "Soumettre le rapport",

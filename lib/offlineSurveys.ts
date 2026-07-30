@@ -75,7 +75,9 @@ export async function get_pending_count(): Promise<number> {
 	return db.count(STORE);
 }
 
-async function try_resend(record: PendingSurveyRecord): Promise<boolean> {
+type ResendOutcome = "synced" | "offline" | "rejected";
+
+async function try_resend(record: PendingSurveyRecord): Promise<ResendOutcome> {
 	const fd = new FormData();
 	fd.append("incidentType", record.fields.incidentType);
 	record.fields.infrastructure.forEach((v) => fd.append("infrastructure", v));
@@ -95,9 +97,11 @@ async function try_resend(record: PendingSurveyRecord): Promise<boolean> {
 
 	try {
 		const res = await fetch("/api/survey", { method: "POST", body: fd });
-		return res.ok || res.status === 200 || res.status === 202;
+		return res.ok ? "synced" : "rejected";
 	} catch {
-		return false;
+		// fetch throwing (vs. a server response) means the request never
+		// completed — that's the actual "still offline" signal.
+		return "offline";
 	}
 }
 
@@ -106,13 +110,16 @@ export async function sync_pending_surveys(): Promise<{ synced: number; remainin
 	const all = await db.getAll(STORE);
 	let synced = 0;
 	for (const record of all) {
-		const ok = await try_resend(record);
-		if (ok && record.id !== undefined) {
+		const outcome = await try_resend(record);
+		if (outcome === "synced" && record.id !== undefined) {
 			await db.delete(STORE, record.id);
 			synced++;
-		} else {
-			break; // stop on first failure — likely still offline
+		} else if (outcome === "offline") {
+			break; // stop here — likely still offline, retry everything next time
 		}
+		// "rejected" (e.g. the server explicitly refused this one, such as a
+		// too-large photo) isn't a connectivity problem — leave this record
+		// queued and keep going, so it doesn't block every report behind it.
 	}
 	const remaining = await db.count(STORE);
 	return { synced, remaining };

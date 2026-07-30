@@ -1,11 +1,12 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { Select, Button, ThemeToggle } from "@kaistrum/stratum-ui";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { serverSideTranslations } from "next-i18next/pages/serverSideTranslations";
 import type { GetStaticProps } from "next";
 import Survey from "@/components/Survey";
+import IntroScreen, { hasSeenIntro } from "@/components/IntroScreen";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
@@ -22,6 +23,11 @@ export default function Home() {
 	const router = useRouter();
 	const { t } = useTranslation("common");
 	const [surveyOpen, setSurveyOpen] = useState(false);
+	const [showIntro, setShowIntro] = useState(false);
+
+	useEffect(() => {
+		if (!hasSeenIntro()) setShowIntro(true);
+	}, []);
 
 	const currentLocale = router.locale ?? "en";
 
@@ -71,6 +77,8 @@ export default function Home() {
 
 			{/* Survey Drawer */}
 			<Survey setSurveyOpen={setSurveyOpen} surveyOpen={surveyOpen} />
+
+			{showIntro && <IntroScreen onDone={() => setShowIntro(false)} />}
 		</div>
 	);
 }

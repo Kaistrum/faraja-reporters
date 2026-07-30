@@ -6,6 +6,23 @@
   "sortOldest": "最旧",
   "sortNearest": "最近",
   "loadingMap": "加载地图中...",
+  "intro": {
+    "skip": "跳过",
+    "next": "下一步",
+    "getStarted": "开始使用",
+    "slide1": {
+      "title": "欢迎使用 Faraja",
+      "body": "Faraja 帮助社区实时报告和标记灾害损毁情况，让救援人员能够在关键时刻迅速采取行动。"
+    },
+    "slide2": {
+      "title": "几分钟内完成报告",
+      "body": "在地图上标记位置、拍摄照片，并回答几个关于损毁情况的简短问题。"
+    },
+    "slide3": {
+      "title": "没有信号？没关系",
+      "body": "Faraja 即使在没有网络连接的情况下也能使用——您的报告会保存在设备上，一旦恢复联网就会自动发送。"
+    }
+  },
   "survey": {
     "reportIncident": "报告事件",
     "submitReport": "提交报告",

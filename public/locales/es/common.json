@@ -6,6 +6,23 @@
   "sortOldest": "Más antiguo",
   "sortNearest": "Más cercano",
   "loadingMap": "Cargando mapa...",
+  "intro": {
+    "skip": "Omitir",
+    "next": "Siguiente",
+    "getStarted": "Comenzar",
+    "slide1": {
+      "title": "Bienvenido a Faraja",
+      "body": "Faraja ayuda a las comunidades a reportar y mapear daños por desastres en tiempo real, para que los equipos de respuesta puedan actuar rápido cuando más importa."
+    },
+    "slide2": {
+      "title": "Reporta en minutos",
+      "body": "Coloca un pin en el mapa, toma una foto y responde algunas preguntas rápidas sobre el daño que observas."
+    },
+    "slide3": {
+      "title": "¿Sin señal? No hay problema",
+      "body": "Faraja funciona incluso sin conexión a internet: tu reporte se guarda en tu dispositivo y se envía automáticamente cuando vuelvas a estar en línea."
+    }
+  },
   "survey": {
     "reportIncident": "Reportar incidente",
     "submitReport": "Enviar reporte",

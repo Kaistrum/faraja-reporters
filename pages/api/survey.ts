@@ -70,11 +70,18 @@ function postJson(url: string, body: unknown): Promise<{ status: number; json: u
 				res.on("data", (chunk) => chunks.push(chunk));
 				res.on("end", () => {
 					const raw = Buffer.concat(chunks).toString("utf8");
+					// The queue doesn't always return JSON (e.g. a body-parser
+					// size-limit rejection comes back as an HTML error page) —
+					// a non-JSON body is still a real response from the queue,
+					// not a connection failure, so it must not be treated the
+					// same as "queue unreachable" by the caller.
+					let json: unknown = null;
 					try {
-						resolve({ status: res.statusCode ?? 502, json: raw ? JSON.parse(raw) : null });
-					} catch (err) {
-						reject(err);
+						json = raw ? JSON.parse(raw) : null;
+					} catch {
+						json = { error: raw.slice(0, 500) };
 					}
+					resolve({ status: res.statusCode ?? 502, json });
 				});
 			}
 		);
