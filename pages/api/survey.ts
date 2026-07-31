@@ -10,34 +10,21 @@ export const config = {
 };
 
 // REPORTS_API_URL now points at the report queue — it takes the survey
-// payload (image included, as base64) as-is and handles storage/dispatch
-// from there, so this route no longer talks to Cloudinary directly.
+// payload (image included, as a multipart file part) and handles
+// storage/dispatch from there, so this route no longer talks to Cloudinary
+// directly.
 const REPORTS_API_URL = (process.env.REPORTS_API_URL ?? "http://5.189.150.44:6000/survey").trim();
 
-interface SurveyImage {
-	data: string; // base64-encoded bytes
+interface ImagePart {
+	buffer: Buffer;
 	mimeType: string;
 	filename: string;
 }
 
-interface SurveyData {
-	incidentType: string;
-	infrastructure: string[];
-	otherText: string;
-	infraName: string;
-	infraCount: string;
-	damageClass: string;
-	debris: string;
-	description: string;
-	location: [number, number] | null;
-	image?: SurveyImage | null;
-}
-
-async function readImage(imageFile: formidable.File): Promise<SurveyImage> {
+function readImage(imageFile: formidable.File): ImagePart {
 	try {
-		const buffer = fs.readFileSync(imageFile.filepath);
 		return {
-			data: buffer.toString("base64"),
+			buffer: fs.readFileSync(imageFile.filepath),
 			mimeType: imageFile.mimetype ?? "image/jpeg",
 			filename: imageFile.originalFilename ?? imageFile.newFilename
 		};
@@ -46,14 +33,52 @@ async function readImage(imageFile: formidable.File): Promise<SurveyImage> {
 	}
 }
 
+// Serialize the survey into a multipart/form-data body. The image travels as a
+// binary file part (not base64 in a JSON blob), so it stays under the queue's
+// multer limit (10 MB) instead of blowing past express.json()'s ~100 KB cap.
+// `fields` is a list of tuples rather than an object so repeated keys (e.g. one
+// "infrastructure" part per selected value) survive — mirroring the multipart
+// shape the browser originally sent.
+function buildMultipart(
+	fields: Array<[string, string]>,
+	image: ImagePart | null
+): { boundary: string; body: Buffer } {
+	const boundary = `----farajaFormBoundary${Math.random().toString(16).slice(2)}`;
+	const chunks: Buffer[] = [];
+	const push = (s: string) => chunks.push(Buffer.from(s, "utf8"));
+
+	for (const [name, value] of fields) {
+		push(`--${boundary}\r\n`);
+		push(`Content-Disposition: form-data; name="${name}"\r\n\r\n`);
+		push(`${value}\r\n`);
+	}
+
+	if (image) {
+		push(`--${boundary}\r\n`);
+		push(
+			`Content-Disposition: form-data; name="image"; filename="${image.filename}"\r\n`
+		);
+		push(`Content-Type: ${image.mimeType}\r\n\r\n`);
+		chunks.push(image.buffer);
+		push("\r\n");
+	}
+
+	push(`--${boundary}--\r\n`);
+	return { boundary, body: Buffer.concat(chunks) };
+}
+
 // The queue listens on :6000, which Node's fetch()/undici refuses to dial —
 // it's on the Fetch spec's "bad port" blocklist (shared with browsers,
 // reserved for X11). http.request has no such restriction, so it's used
 // here instead of fetch for this one upstream call.
-function postJson(url: string, body: unknown): Promise<{ status: number; json: unknown }> {
+function postMultipart(
+	url: string,
+	fields: Array<[string, string]>,
+	image: ImagePart | null
+): Promise<{ status: number; json: unknown }> {
 	return new Promise((resolve, reject) => {
 		const target = new URL(url);
-		const payload = JSON.stringify(body);
+		const { boundary, body } = buildMultipart(fields, image);
 		const client = target.protocol === "https:" ? https : http;
 
 		const req = client.request(
@@ -61,8 +86,8 @@ function postJson(url: string, body: unknown): Promise<{ status: number; json: u
 			{
 				method: "POST",
 				headers: {
-					"Content-Type": "application/json",
-					"Content-Length": Buffer.byteLength(payload)
+					"Content-Type": `multipart/form-data; boundary=${boundary}`,
+					"Content-Length": body.length
 				}
 			},
 			(res) => {
@@ -86,7 +111,7 @@ function postJson(url: string, body: unknown): Promise<{ status: number; json: u
 			}
 		);
 		req.on("error", reject);
-		req.write(payload);
+		req.write(body);
 		req.end();
 	});
 }
@@ -103,27 +128,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		return res.status(400).json({ error: "incidentType is required" });
 	}
 
-	const locationRaw = fields.location?.[0];
-	const location = locationRaw ? (JSON.parse(locationRaw) as [number, number]) : null;
-
 	const imageFile = files.image?.[0];
-	const image = imageFile ? await readImage(imageFile) : null;
+	const image = imageFile ? readImage(imageFile) : null;
 
-	const surveyData: SurveyData = {
-		incidentType: fields.incidentType[0],
-		infrastructure: fields.infrastructure ?? [],
-		otherText: fields.otherText?.[0] ?? "",
-		infraName: fields.infraName?.[0] ?? "",
-		infraCount: fields.infraCount?.[0] ?? "",
-		damageClass: fields.damageClass?.[0] ?? "",
-		debris: fields.debris?.[0] ?? "",
-		description: fields.description?.[0] ?? "",
-		location,
-		image
-	};
+	// Rebuild the multipart body for the queue. Scalar fields go straight through
+	// as strings; `infrastructure` is forwarded as one part per value (the queue
+	// coerces repeated parts back into an array); `location` is passed as its raw
+	// JSON string, which the queue parses on its end.
+	const outgoing: Array<[string, string]> = [
+		["incidentType", fields.incidentType[0]],
+		["otherText", fields.otherText?.[0] ?? ""],
+		["infraName", fields.infraName?.[0] ?? ""],
+		["infraCount", fields.infraCount?.[0] ?? ""],
+		["damageClass", fields.damageClass?.[0] ?? ""],
+		["debris", fields.debris?.[0] ?? ""],
+		["description", fields.description?.[0] ?? ""]
+	];
+
+	for (const value of fields.infrastructure ?? []) {
+		outgoing.push(["infrastructure", value]);
+	}
+
+	const locationRaw = fields.location?.[0];
+	if (locationRaw) {
+		outgoing.push(["location", locationRaw]);
+	}
 
 	try {
-		const upstream = await postJson(REPORTS_API_URL, surveyData);
+		const upstream = await postMultipart(REPORTS_API_URL, outgoing, image);
 		return res.status(upstream.status).json(upstream.json);
 	} catch (err) {
 		// Queue unreachable — placeholder ack so the offline queue + sync
