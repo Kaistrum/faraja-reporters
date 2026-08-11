@@ -4,6 +4,12 @@ import fs from "fs";
 import http from "http";
 import https from "https";
 import { URL } from "url";
+import {
+	validate_survey,
+	first_error_field,
+	ERROR_MESSAGES,
+	type SurveyErrors
+} from "@/lib/surveyValidation";
 
 export const config = {
 	api: { bodyParser: false }
@@ -97,20 +103,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 	}
 
 	const form = formidable({ maxFiles: 1, maxFileSize: 10 * 1024 * 1024 });
-	const [fields, files] = await form.parse(req);
-
-	if (!fields.incidentType?.[0]) {
-		return res.status(400).json({ error: "incidentType is required" });
+	let fields: formidable.Fields;
+	let files: formidable.Files;
+	try {
+		[fields, files] = await form.parse(req);
+	} catch (err) {
+		// Malformed/oversized upload. No `invalid` flag — a queued report that
+		// tripped the size limit stays queued rather than being discarded.
+		console.error("survey upload could not be parsed:", err);
+		return res.status(400).json({ error: "Report upload could not be read" });
 	}
 
 	const locationRaw = fields.location?.[0];
-	const location = locationRaw ? (JSON.parse(locationRaw) as [number, number]) : null;
+	let location: [number, number] | null = null;
+	if (locationRaw) {
+		try {
+			location = JSON.parse(locationRaw) as [number, number];
+		} catch {
+			location = null;
+		}
+	}
 
 	const imageFile = files.image?.[0];
-	const image = imageFile ? await readImage(imageFile) : null;
 
 	const surveyData: SurveyData = {
-		incidentType: fields.incidentType[0],
+		incidentType: fields.incidentType?.[0] ?? "",
 		infrastructure: fields.infrastructure ?? [],
 		otherText: fields.otherText?.[0] ?? "",
 		infraName: fields.infraName?.[0] ?? "",
@@ -119,8 +136,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		debris: fields.debris?.[0] ?? "",
 		description: fields.description?.[0] ?? "",
 		location,
-		image
+		image: null
 	};
+
+	// Last line of defence: the form gates submission, but the offline queue
+	// and any direct POST come through here too, so an incomplete report is
+	// rejected before it can reach the report queue.
+	const errors: SurveyErrors = validate_survey({
+		...surveyData,
+		hasPhoto: Boolean(imageFile)
+	});
+	const failedField = first_error_field(errors);
+	if (failedField) {
+		if (imageFile) {
+			try {
+				fs.unlinkSync(imageFile.filepath);
+			} catch {
+				/* temp file already gone */
+			}
+		}
+		return res.status(400).json({
+			// `invalid` marks this as permanently unacceptable (as opposed to a
+			// transient failure) so the offline queue drops it instead of
+			// retrying it forever.
+			invalid: true,
+			error: ERROR_MESSAGES[errors[failedField]!] ?? "Report is incomplete",
+			fields: errors
+		});
+	}
+
+	surveyData.image = imageFile ? await readImage(imageFile) : null;
 
 	try {
 		const upstream = await postJson(REPORTS_API_URL, surveyData);

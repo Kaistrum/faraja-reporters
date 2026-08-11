@@ -26,6 +26,15 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import useSWRMutation from "swr/mutation";
 import { save_pending_survey, make_client_id } from "@/lib/offlineSurveys";
+import {
+	validate_survey,
+	first_error_field,
+	FIELD_SLIDE,
+	SLIDE_FIELDS,
+	INFRA_COUNT_VALUES,
+	type SurveyErrors,
+	type SurveyField
+} from "@/lib/surveyValidation";
 
 const PinDropMap = dynamic(() => import("@/components/PinDropMap"), {
 	ssr: false,
@@ -50,11 +59,13 @@ function SlideShell({
 	title,
 	subtitle,
 	required,
+	error,
 	children
 }: {
 	title: string;
 	subtitle?: string;
 	required?: boolean;
+	error?: string;
 	children: React.ReactNode;
 }) {
 	return (
@@ -64,6 +75,11 @@ function SlideShell({
 				{required && <RequiredStar />}
 			</p>
 			{subtitle && <span className="text-xs text-text-muted">{subtitle}</span>}
+			{error && (
+				<span role="alert" className="text-xs font-medium text-danger">
+					{error}
+				</span>
+			)}
 			{children}
 		</Stack>
 	);
@@ -82,6 +98,15 @@ type SurveyPayload = {
 	photo?: File;
 };
 
+// The server refused the report itself (it's incomplete/invalid) — as opposed
+// to the request never getting through. These must not be queued for retry.
+class SurveyRejectedError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "SurveyRejectedError";
+	}
+}
+
 async function postSurvey(url: string, { arg }: { arg: SurveyPayload }) {
 	const fd = new FormData();
 	fd.append("incidentType", arg.incidentType);
@@ -96,8 +121,17 @@ async function postSurvey(url: string, { arg }: { arg: SurveyPayload }) {
 	if (arg.photo) fd.append("image", arg.photo);
 
 	const res = await fetch(url, { method: "POST", body: fd });
-	const data = await res.json();
-	if (!res.ok) throw new Error(data.error ?? "Submission failed");
+	let data: { error?: string; invalid?: boolean } | null = null;
+	try {
+		data = await res.json();
+	} catch {
+		data = null;
+	}
+	if (!res.ok) {
+		const message = data?.error ?? "Submission failed";
+		if (data?.invalid) throw new SurveyRejectedError(message);
+		throw new Error(message);
+	}
 	return data;
 }
 
@@ -111,6 +145,21 @@ export default function Survey({
 	const { t } = useTranslation("common");
 	const [embla, setEmbla] = useState<EmblaCarouselType | null>(null);
 	const [current, setCurrent] = useState(0);
+	// Slides the user has tried to move past / submit from — errors only show
+	// once they've had a go at that step, not from the moment the form opens.
+	const [attempted, setAttempted] = useState<Record<number, boolean>>({});
+
+	// Show the user what's missing: flag the slide, tell them, take them there.
+	const reveal_error = (field: SurveyField, message: string) => {
+		const slide = FIELD_SLIDE[field];
+		setAttempted((prev) => ({ ...prev, [slide]: true }));
+		notifications.show({
+			title: t("validation.incomplete"),
+			message: t(message),
+			color: "red"
+		});
+		embla?.scrollTo(slide);
+	};
 
 	const { trigger, isMutating } = useSWRMutation("/api/survey", postSurvey);
 
@@ -193,6 +242,18 @@ export default function Survey({
 			location: null as [number, number] | null
 		},
 		onSubmit: async (values, { resetForm }) => {
+			// Hard gate: nothing incomplete gets sent or queued, whatever path
+			// called submitForm.
+			const errors = validate_survey({
+				...values,
+				hasPhoto: photos.length > 0
+			});
+			const missing = first_error_field(errors);
+			if (missing) {
+				reveal_error(missing, errors[missing]!);
+				return;
+			}
+
 			const queueOffline = async (message: string) => {
 				await save_pending_survey(
 					{
@@ -217,6 +278,7 @@ export default function Survey({
 				resetForm();
 				setPhotos([]);
 				setCurrent(0);
+				setAttempted({});
 				setSurveyOpen(false);
 			};
 
@@ -246,8 +308,19 @@ export default function Survey({
 				resetForm();
 				setPhotos([]);
 				setCurrent(0);
+				setAttempted({});
 				setSurveyOpen(false);
-			} catch {
+			} catch (err) {
+				if (err instanceof SurveyRejectedError) {
+					// The server rejected the report as incomplete — queuing it
+					// would only retry the same rejection forever.
+					notifications.show({
+						title: t("validation.incomplete"),
+						message: err.message,
+						color: "red"
+					});
+					return;
+				}
 				await queueOffline("Couldn't reach the server — your report is queued and will retry automatically.");
 			}
 		}
@@ -287,8 +360,28 @@ export default function Survey({
 		);
 	};
 
+	const errors: SurveyErrors = validate_survey({
+		...formik.values,
+		hasPhoto: photos.length > 0
+	});
+
+	// Only surfaced once the user has tried to leave the slide it belongs to.
+	const error_text = (field: SurveyField) =>
+		attempted[FIELD_SLIDE[field]] && errors[field]
+			? t(errors[field]!)
+			: undefined;
+
 	const prev = () => embla?.scrollPrev();
-	const next = () => embla?.scrollNext();
+
+	const next = () => {
+		const missing = SLIDE_FIELDS[current].find((field) => errors[field]);
+		if (missing) {
+			reveal_error(missing, errors[missing]!);
+			return;
+		}
+		embla?.scrollNext();
+	};
+
 	const isLast = current === TOTAL_SLIDES - 1;
 
 	return (
@@ -353,7 +446,8 @@ export default function Survey({
 						<SlideShell
 							title={t("survey.q1.title")}
 							subtitle={t("survey.q1.subtitle")}
-							required>
+							required
+							error={error_text("infrastructure")}>
 							<Stack gap="sm">
 								{INFRASTRUCTURE_OPTIONS.map((opt) => (
 									<Checkbox
@@ -373,6 +467,7 @@ export default function Survey({
 									placeholder={t("survey.pleaseSpecify")}
 									value={formik.values.otherText}
 									onChange={formik.handleChange}
+									error={error_text("otherText")}
 									rows={2}
 									className="ml-8"
 								/>
@@ -399,9 +494,10 @@ export default function Survey({
 						<SlideShell
 							title={t("survey.q3.title")}
 							subtitle={t("survey.q3.subtitle")}
-							required>
+							required
+							error={error_text("infraCount")}>
 							<Stack gap="sm">
-								{["1", "2 - 5", "6 - 20", "More than 20"].map((opt) => (
+								{INFRA_COUNT_VALUES.map((opt) => (
 									<Radio
 										key={opt}
 										name="infraCount"
@@ -416,7 +512,10 @@ export default function Survey({
 
 					{/* Slide 4 — Q4: Damage level */}
 					<Carousel.Slide>
-						<SlideShell title={t("survey.q4.title")} required>
+						<SlideShell
+							title={t("survey.q4.title")}
+							required
+							error={error_text("damageClass")}>
 							<Stack gap="sm">
 								{DAMAGE_OPTIONS.map((opt) => (
 									<div
@@ -454,7 +553,8 @@ export default function Survey({
 						<SlideShell
 							title={t("survey.q5.title")}
 							subtitle={t("survey.q5.subtitle")}
-							required>
+							required
+							error={error_text("debris")}>
 							<Stack gap="sm">
 								<Radio
 									name="debris"
@@ -477,7 +577,8 @@ export default function Survey({
 						<SlideShell
 							title={t("survey.q6.title")}
 							subtitle={t("survey.q6.subtitle")}
-							required>
+							required
+							error={error_text("location")}>
 							{formik.values.location && (
 								<span className="text-xs text-accent">
 									{t("survey.pinSetAt")} {formik.values.location[0].toFixed(5)},{" "}
@@ -511,7 +612,8 @@ export default function Survey({
 						<SlideShell
 							title={t("survey.q8.title")}
 							subtitle={t("survey.photoOfDamage")}
-							required>
+							required
+							error={error_text("photo")}>
 							<input
 								ref={cameraRef}
 								type="file"

@@ -67,6 +67,17 @@
     "partial": { "label": "Partiellement endommagé", "desc": "Réparable, reste utilisable avec prudence" },
     "complete": { "label": "Complètement détruit", "desc": "Structurellement dangereux ou détruit" }
   },
+  "validation": {
+    "incomplete": "Signalement incomplet",
+    "incidentType": "Sélectionnez le type d'incident.",
+    "infrastructure": "Sélectionnez au moins un type d'infrastructure touchée.",
+    "otherText": "Précisez l'autre infrastructure que vous avez sélectionnée.",
+    "infraCount": "Indiquez le nombre d'infrastructures touchées.",
+    "damageClass": "Sélectionnez le niveau de dommages.",
+    "debris": "Indiquez s'il y a des débris à déblayer.",
+    "location": "Placez un repère sur la carte pour indiquer le lieu de la catastrophe.",
+    "photo": "Ajoutez une photo de l'infrastructure endommagée."
+  },
   "incident": {
     "earthquake": "Séisme",
     "wildfire": "Incendie de forêt",

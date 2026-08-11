@@ -67,6 +67,17 @@
     "partial": { "label": "Partially damaged", "desc": "Repairable, and remains usable with caution" },
     "complete": { "label": "Completely damaged", "desc": "Structurally unsafe or destroyed" }
   },
+  "validation": {
+    "incomplete": "Report incomplete",
+    "incidentType": "Select the type of incident.",
+    "infrastructure": "Select at least one type of affected infrastructure.",
+    "otherText": "Describe the other infrastructure you selected.",
+    "infraCount": "Select how many pieces of infrastructure were affected.",
+    "damageClass": "Select the level of damage.",
+    "debris": "Say whether there is debris that needs clearing.",
+    "location": "Drop a pin on the map to mark the disaster location.",
+    "photo": "Add a photo of the damaged infrastructure."
+  },
   "incident": {
     "earthquake": "Earthquake",
     "wildfire": "Wildfire",

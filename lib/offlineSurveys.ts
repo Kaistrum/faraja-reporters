@@ -75,7 +75,7 @@ export async function get_pending_count(): Promise<number> {
 	return db.count(STORE);
 }
 
-type ResendOutcome = "synced" | "offline" | "rejected";
+type ResendOutcome = "synced" | "offline" | "rejected" | "invalid";
 
 async function try_resend(record: PendingSurveyRecord): Promise<ResendOutcome> {
 	const fd = new FormData();
@@ -97,7 +97,16 @@ async function try_resend(record: PendingSurveyRecord): Promise<ResendOutcome> {
 
 	try {
 		const res = await fetch("/api/survey", { method: "POST", body: fd });
-		return res.ok ? "synced" : "rejected";
+		if (res.ok) return "synced";
+		// The server marks a report it will never accept (missing required
+		// answers) with `invalid` — retrying that one forever is pointless.
+		let invalid = false;
+		try {
+			invalid = Boolean((await res.json())?.invalid);
+		} catch {
+			invalid = false;
+		}
+		return invalid ? "invalid" : "rejected";
 	} catch {
 		// fetch throwing (vs. a server response) means the request never
 		// completed — that's the actual "still offline" signal.
@@ -114,6 +123,10 @@ export async function sync_pending_surveys(): Promise<{ synced: number; remainin
 		if (outcome === "synced" && record.id !== undefined) {
 			await db.delete(STORE, record.id);
 			synced++;
+		} else if (outcome === "invalid" && record.id !== undefined) {
+			// Incomplete report (e.g. queued before the form enforced the
+			// required fields) — drop it so it stops blocking the queue.
+			await db.delete(STORE, record.id);
 		} else if (outcome === "offline") {
 			break; // stop here — likely still offline, retry everything next time
 		}

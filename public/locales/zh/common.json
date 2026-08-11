@@ -67,6 +67,17 @@
     "partial": { "label": "部分损坏", "desc": "可修复，谨慎使用下仍可使用" },
     "complete": { "label": "完全损坏", "desc": "结构不安全或已被摧毁" }
   },
+  "validation": {
+    "incomplete": "报告不完整",
+    "incidentType": "请选择事件类型。",
+    "infrastructure": "请至少选择一种受影响的基础设施。",
+    "otherText": "请说明您选择的其他基础设施。",
+    "infraCount": "请选择受影响的基础设施数量。",
+    "damageClass": "请选择损坏程度。",
+    "debris": "请说明是否有需要清理的废墟。",
+    "location": "请在地图上放置图钉以标记灾害位置。",
+    "photo": "请添加受损基础设施的照片。"
+  },
   "incident": {
     "earthquake": "地震",
     "wildfire": "野火",
