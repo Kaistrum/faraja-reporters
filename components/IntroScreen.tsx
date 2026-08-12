@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Carousel } from "@mantine/carousel";
 import type { EmblaCarouselType } from "embla-carousel";
 import { Button } from "@kaistrum/stratum-ui";
-import { IconShieldCheck, IconMapPin, IconWifiOff } from "@tabler/icons-react";
+import { IconShieldCheck, IconMapPin, IconDeviceMobile } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
 const INTRO_SEEN_KEY = "faraja-intro-seen";
@@ -15,7 +15,7 @@ export function hasSeenIntro(): boolean {
 const SLIDES = [
 	{ icon: IconShieldCheck, titleKey: "intro.slide1.title", bodyKey: "intro.slide1.body" },
 	{ icon: IconMapPin, titleKey: "intro.slide2.title", bodyKey: "intro.slide2.body" },
-	{ icon: IconWifiOff, titleKey: "intro.slide3.title", bodyKey: "intro.slide3.body" }
+	{ icon: IconDeviceMobile, titleKey: "intro.slide3.title", bodyKey: "intro.slide3.body" }
 ];
 
 export default function IntroScreen({ onDone }: { onDone: () => void }) {

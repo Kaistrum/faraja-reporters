@@ -8,6 +8,27 @@ interface ChatMessage {
 	content: string;
 }
 
+// When its model is down, the Faraja service doesn't fail — it answers 200 OK
+// with its own canned apology, so a status check can't see it. These are the
+// phrases that reply is built from; matching one means the assistant is not
+// actually reasoning about what the reporter said, and the client should take
+// over with the scripted survey instead.
+const DEGRADED_REPLY_SIGNATURES = [
+	"having trouble responding",
+	"having trouble connecting",
+	"i'm unable to respond",
+	"i am unable to respond",
+	"try again later"
+];
+
+function is_degraded_reply(reply: string): boolean {
+	const normalized = reply.toLowerCase().replace(/\s+/g, " ");
+	return DEGRADED_REPLY_SIGNATURES.some((phrase) => normalized.includes(phrase));
+}
+
+const FALLBACK_REPLY =
+	"I can't reach my assistant right now, so I'll take your report step by step instead.";
+
 export default async function handler(
 	req: NextApiRequest,
 	res: NextApiResponse
@@ -35,17 +56,18 @@ export default async function handler(
 
 		if (!upstream.ok) throw new Error(`faraja ${upstream.status}`);
 		const data = await upstream.json();
-		const reply =
-			typeof data?.reply === "string" && data.reply.trim()
-				? data.reply
-				: "I'm here to help. Could you tell me a bit more about what you're seeing?";
-		return res.status(200).json({ reply });
+		const reply = typeof data?.reply === "string" ? data.reply.trim() : "";
+
+		// An empty or canned reply is as useless to the reporter as no reply at
+		// all — both hand off to the scripted survey.
+		if (!reply || is_degraded_reply(reply)) {
+			return res.status(200).json({ reply: FALLBACK_REPLY, degraded: true });
+		}
+
+		return res.status(200).json({ reply, degraded: false });
 	} catch {
-		// Faraja unreachable — never block the reporter; give a safe fallback.
-		return res.status(200).json({
-			reply:
-				"I'm having trouble connecting right now. If anyone is in immediate danger, " +
-				"please call your local emergency number and follow local authorities."
-		});
+		// Faraja unreachable — never block the reporter; the scripted survey
+		// still gets their report into the queue.
+		return res.status(200).json({ reply: FALLBACK_REPLY, degraded: true });
 	}
 }

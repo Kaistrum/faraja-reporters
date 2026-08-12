@@ -8,7 +8,6 @@ import { createTheme, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { ThemeProvider, useTheme } from "@kaistrum/stratum-ui";
 import { appWithTranslation } from "next-i18next/pages";
-import { useOfflineSync } from "@/hooks/useOfflineSync";
 
 const theme = createTheme({
 	fontFamily: "var(--font-sans)",
@@ -42,8 +41,6 @@ function MantineBridge({ children }: { children: React.ReactNode }) {
 }
 
 function App({ Component, pageProps }: AppProps) {
-	useOfflineSync();
-
 	return (
 		<ThemeProvider defaultTheme="light">
 			<ThemeClassSync />

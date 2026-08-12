@@ -25,7 +25,6 @@ import { useFormik } from "formik";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import useSWRMutation from "swr/mutation";
-import { save_pending_survey, make_client_id } from "@/lib/offlineSurveys";
 import {
 	validate_survey,
 	first_error_field,
@@ -98,15 +97,6 @@ type SurveyPayload = {
 	photo?: File;
 };
 
-// The server refused the report itself (it's incomplete/invalid) — as opposed
-// to the request never getting through. These must not be queued for retry.
-class SurveyRejectedError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = "SurveyRejectedError";
-	}
-}
-
 async function postSurvey(url: string, { arg }: { arg: SurveyPayload }) {
 	const fd = new FormData();
 	fd.append("incidentType", arg.incidentType);
@@ -121,17 +111,13 @@ async function postSurvey(url: string, { arg }: { arg: SurveyPayload }) {
 	if (arg.photo) fd.append("image", arg.photo);
 
 	const res = await fetch(url, { method: "POST", body: fd });
-	let data: { error?: string; invalid?: boolean } | null = null;
+	let data: { error?: string } | null = null;
 	try {
 		data = await res.json();
 	} catch {
 		data = null;
 	}
-	if (!res.ok) {
-		const message = data?.error ?? "Submission failed";
-		if (data?.invalid) throw new SurveyRejectedError(message);
-		throw new Error(message);
-	}
+	if (!res.ok) throw new Error(data?.error ?? "Submission failed");
 	return data;
 }
 
@@ -242,8 +228,8 @@ export default function Survey({
 			location: null as [number, number] | null
 		},
 		onSubmit: async (values, { resetForm }) => {
-			// Hard gate: nothing incomplete gets sent or queued, whatever path
-			// called submitForm.
+			// Hard gate: nothing incomplete gets sent, whatever path called
+			// submitForm.
 			const errors = validate_survey({
 				...values,
 				hasPhoto: photos.length > 0
@@ -251,39 +237,6 @@ export default function Survey({
 			const missing = first_error_field(errors);
 			if (missing) {
 				reveal_error(missing, errors[missing]!);
-				return;
-			}
-
-			const queueOffline = async (message: string) => {
-				await save_pending_survey(
-					{
-						incidentType: values.incidentType,
-						infrastructure: values.infrastructure,
-						otherText: values.otherText,
-						infraName: values.infraName,
-						infraCount: values.infraCount,
-						damageClass: values.damageClass,
-						debris: values.debris,
-						description: values.description,
-						location: values.location,
-						client_id: make_client_id()
-					},
-					photos[0]?.file ?? null
-				);
-				notifications.show({
-					title: "Saved offline",
-					message,
-					color: "blue"
-				});
-				resetForm();
-				setPhotos([]);
-				setCurrent(0);
-				setAttempted({});
-				setSurveyOpen(false);
-			};
-
-			if (!navigator.onLine) {
-				await queueOffline("Your report is queued and will send once you're back online.");
 				return;
 			}
 
@@ -311,17 +264,16 @@ export default function Survey({
 				setAttempted({});
 				setSurveyOpen(false);
 			} catch (err) {
-				if (err instanceof SurveyRejectedError) {
-					// The server rejected the report as incomplete — queuing it
-					// would only retry the same rejection forever.
-					notifications.show({
-						title: t("validation.incomplete"),
-						message: err.message,
-						color: "red"
-					});
-					return;
-				}
-				await queueOffline("Couldn't reach the server — your report is queued and will retry automatically.");
+				// Nothing is stored on the device, so the form stays open with the
+				// reporter's answers intact for them to try again.
+				notifications.show({
+					title: "Report not sent",
+					message:
+						err instanceof Error && err.message
+							? err.message
+							: "Couldn't send your report. Check your connection and try again.",
+					color: "red"
+				});
 			}
 		}
 	});
@@ -631,9 +583,11 @@ export default function Survey({
 							/>
 
 							{photos.length > 0 && (
-								<div className="flex flex-wrap gap-2">
+								<div className="flex flex-col gap-2">
 									{photos.map((p, i) => (
-										<div key={i} className="relative h-24 w-24 flex-shrink-0">
+										<div
+											key={i}
+											className="relative aspect-square w-full overflow-hidden bg-bg-card">
 											<img
 												src={p.preview}
 												alt={`photo-${i}`}
@@ -641,11 +595,11 @@ export default function Survey({
 											/>
 											<IconButton
 												aria-label="Remove photo"
-												icon={<IconX size={10} stroke={2.5} />}
+												icon={<IconX size={14} stroke={2.5} />}
 												variant="default"
 												size="sm"
 												onClick={() => removePhoto(i)}
-												className="absolute -right-1.5 -top-1.5 !h-5 !w-5 !rounded-full"
+												className="absolute right-2 top-2 !h-7 !w-7 !rounded-full"
 											/>
 										</div>
 									))}

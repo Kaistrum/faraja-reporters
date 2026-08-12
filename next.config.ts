@@ -23,9 +23,8 @@ const withPWA = withPWAInit({
 	dest: "public",
 	extendDefaultRuntimeCaching: true,
 	// next-pwa force-reloads the whole page on the `online` event by
-	// default — that races with hooks/useOfflineSync.ts, which listens for
-	// the same event to flush the IndexedDB queue, and can kill the
-	// in-flight /api/survey request mid-upload before it completes.
+	// default — on a flaky connection that can fire mid-submission and kill
+	// the in-flight /api/survey request, losing the reporter's answers.
 	reloadOnOnline: false,
 	workboxOptions: {
 		// Next.js emits `dynamic-css-manifest.json` as an internal build
