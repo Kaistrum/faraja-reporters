@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import formidable from "formidable";
-import fs from "fs";
+import multer from "multer";
 import http from "http";
 import https from "https";
 import { URL } from "url";
@@ -16,50 +15,100 @@ export const config = {
 };
 
 // REPORTS_API_URL now points at the report queue — it takes the survey
-// payload (image included, as base64) as-is and handles storage/dispatch
-// from there, so this route no longer talks to Cloudinary directly.
+// payload (image included, as a multipart file part) and handles
+// storage/dispatch from there, so this route no longer talks to Cloudinary
+// directly.
 const REPORTS_API_URL = (process.env.REPORTS_API_URL ?? "http://5.189.150.44:6000/survey").trim();
 
-interface SurveyImage {
-	data: string; // base64-encoded bytes
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+// Memory storage: the image is forwarded straight to the queue, so there's no
+// reason to spill it to disk and clean up temp files afterwards.
+const upload = multer({
+	storage: multer.memoryStorage(),
+	limits: { files: 1, fileSize: MAX_IMAGE_BYTES }
+}).single("image");
+
+// Multer is Express middleware; Next's API req/res are close enough for it to
+// work on (it only reads the raw request stream and writes to req.body/req.file).
+type MulterRequest = NextApiRequest & {
+	body: Record<string, string | string[]>;
+	file?: Express.Multer.File;
+};
+
+function runUpload(req: NextApiRequest, res: NextApiResponse): Promise<void> {
+	return new Promise((resolve, reject) => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		upload(req as any, res as any, (err: unknown) => {
+			if (err) reject(err);
+			else resolve();
+		});
+	});
+}
+
+interface ImagePart {
+	buffer: Buffer;
 	mimeType: string;
 	filename: string;
 }
 
-interface SurveyData {
-	incidentType: string;
-	infrastructure: string[];
-	otherText: string;
-	infraName: string;
-	infraCount: string;
-	damageClass: string;
-	debris: string;
-	description: string;
-	location: [number, number] | null;
-	image?: SurveyImage | null;
+// Multer collapses a single occurrence of a field to a string and repeated
+// occurrences to an array; normalize both to an array.
+function field_values(value: string | string[] | undefined): string[] {
+	if (value === undefined) return [];
+	return Array.isArray(value) ? value : [value];
 }
 
-async function readImage(imageFile: formidable.File): Promise<SurveyImage> {
-	try {
-		const buffer = fs.readFileSync(imageFile.filepath);
-		return {
-			data: buffer.toString("base64"),
-			mimeType: imageFile.mimetype ?? "image/jpeg",
-			filename: imageFile.originalFilename ?? imageFile.newFilename
-		};
-	} finally {
-		fs.unlinkSync(imageFile.filepath);
+function field_value(value: string | string[] | undefined): string {
+	return field_values(value)[0] ?? "";
+}
+
+// Serialize the survey into a multipart/form-data body. The image travels as a
+// binary file part (not base64 in a JSON blob), so it stays under the queue's
+// multer limit (10 MB) instead of blowing past express.json()'s ~100 KB cap.
+// `fields` is a list of tuples rather than an object so repeated keys (e.g. one
+// "infrastructure" part per selected value) survive — mirroring the multipart
+// shape the browser originally sent.
+function buildMultipart(
+	fields: Array<[string, string]>,
+	image: ImagePart | null
+): { boundary: string; body: Buffer } {
+	const boundary = `----farajaFormBoundary${Math.random().toString(16).slice(2)}`;
+	const chunks: Buffer[] = [];
+	const push = (s: string) => chunks.push(Buffer.from(s, "utf8"));
+
+	for (const [name, value] of fields) {
+		push(`--${boundary}\r\n`);
+		push(`Content-Disposition: form-data; name="${name}"\r\n\r\n`);
+		push(`${value}\r\n`);
 	}
+
+	if (image) {
+		push(`--${boundary}\r\n`);
+		push(
+			`Content-Disposition: form-data; name="image"; filename="${image.filename}"\r\n`
+		);
+		push(`Content-Type: ${image.mimeType}\r\n\r\n`);
+		chunks.push(image.buffer);
+		push("\r\n");
+	}
+
+	push(`--${boundary}--\r\n`);
+	return { boundary, body: Buffer.concat(chunks) };
 }
 
 // The queue listens on :6000, which Node's fetch()/undici refuses to dial —
 // it's on the Fetch spec's "bad port" blocklist (shared with browsers,
 // reserved for X11). http.request has no such restriction, so it's used
 // here instead of fetch for this one upstream call.
-function postJson(url: string, body: unknown): Promise<{ status: number; json: unknown }> {
+function postMultipart(
+	url: string,
+	fields: Array<[string, string]>,
+	image: ImagePart | null
+): Promise<{ status: number; json: unknown }> {
 	return new Promise((resolve, reject) => {
 		const target = new URL(url);
-		const payload = JSON.stringify(body);
+		const { boundary, body } = buildMultipart(fields, image);
 		const client = target.protocol === "https:" ? https : http;
 
 		const req = client.request(
@@ -67,8 +116,8 @@ function postJson(url: string, body: unknown): Promise<{ status: number; json: u
 			{
 				method: "POST",
 				headers: {
-					"Content-Type": "application/json",
-					"Content-Length": Buffer.byteLength(payload)
+					"Content-Type": `multipart/form-data; boundary=${boundary}`,
+					"Content-Length": body.length
 				}
 			},
 			(res) => {
@@ -92,7 +141,7 @@ function postJson(url: string, body: unknown): Promise<{ status: number; json: u
 			}
 		);
 		req.on("error", reject);
-		req.write(payload);
+		req.write(body);
 		req.end();
 	});
 }
@@ -102,19 +151,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		return res.status(405).json({ error: "Method not allowed" });
 	}
 
-	const form = formidable({ maxFiles: 1, maxFileSize: 10 * 1024 * 1024 });
-	let fields: formidable.Fields;
-	let files: formidable.Files;
 	try {
-		[fields, files] = await form.parse(req);
+		await runUpload(req, res);
 	} catch (err) {
-		// Malformed/oversized upload. No `invalid` flag — a queued report that
-		// tripped the size limit stays queued rather than being discarded.
-		console.error("survey upload could not be parsed:", err);
-		return res.status(400).json({ error: "Report upload could not be read" });
+		const tooLarge = err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE";
+		console.error("survey upload could not be read:", err);
+		return res.status(400).json({
+			error: tooLarge
+				? "Photo is too large — please use one under 10 MB."
+				: "Report upload could not be read"
+		});
 	}
 
-	const locationRaw = fields.location?.[0];
+	const { body, file } = req as MulterRequest;
+
+	const locationRaw = field_value(body.location);
 	let location: [number, number] | null = null;
 	if (locationRaw) {
 		try {
@@ -124,56 +175,67 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		}
 	}
 
-	const imageFile = files.image?.[0];
-
-	const surveyData: SurveyData = {
-		incidentType: fields.incidentType?.[0] ?? "",
-		infrastructure: fields.infrastructure ?? [],
-		otherText: fields.otherText?.[0] ?? "",
-		infraName: fields.infraName?.[0] ?? "",
-		infraCount: fields.infraCount?.[0] ?? "",
-		damageClass: fields.damageClass?.[0] ?? "",
-		debris: fields.debris?.[0] ?? "",
-		description: fields.description?.[0] ?? "",
-		location,
-		image: null
-	};
-
-	// Last line of defence: the form gates submission, but the offline queue
-	// and any direct POST come through here too, so an incomplete report is
-	// rejected before it can reach the report queue.
+	// Last line of defence: the form gates submission, but a direct POST comes
+	// through here too, so an incomplete report is rejected before it can reach
+	// the report queue.
 	const errors: SurveyErrors = validate_survey({
-		...surveyData,
-		hasPhoto: Boolean(imageFile)
+		incidentType: field_value(body.incidentType),
+		infrastructure: field_values(body.infrastructure),
+		otherText: field_value(body.otherText),
+		infraCount: field_value(body.infraCount),
+		damageClass: field_value(body.damageClass),
+		debris: field_value(body.debris),
+		location,
+		hasPhoto: Boolean(file)
 	});
 	const failedField = first_error_field(errors);
 	if (failedField) {
-		if (imageFile) {
-			try {
-				fs.unlinkSync(imageFile.filepath);
-			} catch {
-				/* temp file already gone */
-			}
-		}
 		return res.status(400).json({
-			// `invalid` marks this as permanently unacceptable (as opposed to a
-			// transient failure) so the offline queue drops it instead of
-			// retrying it forever.
+			// `invalid` marks this as a report the queue will never accept, as
+			// opposed to a transient failure worth retrying.
 			invalid: true,
 			error: ERROR_MESSAGES[errors[failedField]!] ?? "Report is incomplete",
 			fields: errors
 		});
 	}
 
-	surveyData.image = imageFile ? await readImage(imageFile) : null;
+	// Rebuild the multipart body for the queue. Scalar fields go straight through
+	// as strings; `infrastructure` is forwarded as one part per value (the queue
+	// coerces repeated parts back into an array); `location` is passed as its raw
+	// JSON string, which the queue parses on its end.
+	const outgoing: Array<[string, string]> = [
+		["incidentType", field_value(body.incidentType)],
+		["otherText", field_value(body.otherText)],
+		["infraName", field_value(body.infraName)],
+		["infraCount", field_value(body.infraCount)],
+		["damageClass", field_value(body.damageClass)],
+		["debris", field_value(body.debris)],
+		["description", field_value(body.description)],
+		["location", locationRaw]
+	];
+
+	for (const value of field_values(body.infrastructure)) {
+		outgoing.push(["infrastructure", value]);
+	}
+
+	const image: ImagePart | null = file
+		? {
+				buffer: file.buffer,
+				mimeType: file.mimetype || "image/jpeg",
+				filename: file.originalname || "photo.jpg"
+			}
+		: null;
 
 	try {
-		const upstream = await postJson(REPORTS_API_URL, surveyData);
+		const upstream = await postMultipart(REPORTS_API_URL, outgoing, image);
 		return res.status(upstream.status).json(upstream.json);
 	} catch (err) {
-		// Queue unreachable — placeholder ack so the offline queue + sync
-		// flow still completes end-to-end without it.
+		// Queue unreachable. Nothing is holding the report on the device any
+		// more, so this has to be reported as a failure the reporter can retry
+		// rather than acknowledged as if it had been accepted.
 		console.error("REPORTS_API_URL unreachable:", REPORTS_API_URL, err);
-		return res.status(202).json({ queued: true, placeholder: true });
+		return res.status(502).json({
+			error: "Couldn't reach the report service. Please try again."
+		});
 	}
 }
