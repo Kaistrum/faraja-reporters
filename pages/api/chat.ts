@@ -26,8 +26,11 @@ function is_degraded_reply(reply: string): boolean {
 	return DEGRADED_REPLY_SIGNATURES.some((phrase) => normalized.includes(phrase));
 }
 
-const FALLBACK_REPLY =
-	"I can't reach my assistant right now, so I'll take your report step by step instead.";
+// No apology text: `degraded` tells the client to run the scripted survey, and
+// the reporter simply gets asked the first question. Someone in the middle of a
+// disaster doesn't need to hear that our model is down — they need the report
+// taken. The empty reply is deliberate; the client renders nothing for it.
+const DEGRADED_RESPONSE = { reply: "", degraded: true };
 
 export default async function handler(
 	req: NextApiRequest,
@@ -61,13 +64,13 @@ export default async function handler(
 		// An empty or canned reply is as useless to the reporter as no reply at
 		// all — both hand off to the scripted survey.
 		if (!reply || is_degraded_reply(reply)) {
-			return res.status(200).json({ reply: FALLBACK_REPLY, degraded: true });
+			return res.status(200).json(DEGRADED_RESPONSE);
 		}
 
 		return res.status(200).json({ reply, degraded: false });
 	} catch {
 		// Faraja unreachable — never block the reporter; the scripted survey
 		// still gets their report into the queue.
-		return res.status(200).json({ reply: FALLBACK_REPLY, degraded: true });
+		return res.status(200).json(DEGRADED_RESPONSE);
 	}
 }

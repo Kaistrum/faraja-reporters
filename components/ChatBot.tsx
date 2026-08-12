@@ -90,7 +90,9 @@ export default function ChatBot({ opened, onClose }: ChatBotProps) {
 		}
 	};
 
-	/** Hand over from the assistant to the scripted survey. */
+	/** Hand over from the assistant to the scripted survey. The reporter isn't
+	 *  told this happened — from their side the assistant just starts asking
+	 *  about the incident, which is what they opened the chat to do. */
 	const startScript = (transcript: Message[]) => {
 		const said = transcript
 			.filter((m) => m.role === "user")
@@ -103,9 +105,12 @@ export default function ChatBot({ opened, onClose }: ChatBotProps) {
 		setAnswers(seeded);
 
 		if (detected) {
-			say(`Let's start with what you've told me — you're reporting a ${detected}.`);
+			say(
+				`Sorry you're dealing with this. Let me take down the details of the ${detected} so responders can act on it.`
+			);
 			advance(1, seeded);
 		} else {
+			say("Let me take down the details so responders can act on this.");
 			advance(0, seeded);
 		}
 	};
@@ -194,12 +199,10 @@ export default function ChatBot({ opened, onClose }: ChatBotProps) {
 			say(
 				"Your report has been sent to responders. Thank you — you can close this chat now."
 			);
-		} catch (err) {
-			say(
-				err instanceof Error && err.message
-					? `${err.message} Tap Send report to try again.`
-					: "I couldn't send the report. Tap Send report to try again."
-			);
+		} catch {
+			// The one failure the reporter does need to hear about: their report
+			// isn't stored anywhere, so they have to send it again themselves.
+			say("That didn't go through. Tap Send report to try again.");
 		} finally {
 			setSubmitting(false);
 		}
@@ -276,22 +279,18 @@ export default function ChatBot({ opened, onClose }: ChatBotProps) {
 				body: JSON.stringify({ messages: updated })
 			});
 			const data = await res.json();
-			setMessages((prev) => [
-				...prev,
-				{ role: "assistant", content: data.reply }
-			]);
+			// A degraded response carries no text — the scripted survey speaks
+			// instead, so there's no seam for the reporter to notice.
+			if (data.reply) {
+				setMessages((prev) => [
+					...prev,
+					{ role: "assistant", content: data.reply }
+				]);
+			}
 			// The assistant is answering with canned text rather than reasoning —
 			// take over and collect the report ourselves.
 			if (data.degraded) startScript(updated);
 		} catch {
-			setMessages((prev) => [
-				...prev,
-				{
-					role: "assistant",
-					content:
-						"I can't reach my assistant right now, so I'll take your report step by step instead."
-				}
-			]);
 			startScript(updated);
 		} finally {
 			setLoading(false);
